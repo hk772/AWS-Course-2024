@@ -1,0 +1,2 @@
+ToImage	C:\Users\hagai\Documents\uni\year 5\mevuzarot\assignments\Ass1EC2\src\main\java\org\example\PDFS\ass2.pdf
+ToText	C:\Users\hagai\Documents\uni\year 5\mevuzarot\assignments\Ass1EC2\src\main\java\org\example\PDFS\ass2.pdf
