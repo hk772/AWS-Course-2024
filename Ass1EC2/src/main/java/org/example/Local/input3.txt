@@ -1,2 +1,2 @@
-ToImage	C:\Users\hagai\Documents\uni\year 5\mevuzarot\assignments\Ass1EC2\src\main\java\org\example\PDFS\ass3.pdf
-ToHTML	C:\Users\hagai\Documents\uni\year 5\mevuzarot\assignments\Ass1EC2\src\main\java\org\example\PDFS\ass3.pdf
+ToImage	ass3.pdf
+ToHTML	ass3.pdf

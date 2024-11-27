@@ -1,5 +1,6 @@
 package org.example.Local;
 
+import org.example.App;
 import org.example.Messages.Message;
 import org.example.Manager.Manager;
 
@@ -18,26 +19,32 @@ public class Local extends Thread {
     Manager manager;
     String terminate;
     String url;
-    String uploadedUrl;
+    String fileKey;
+    String outPath;
+    App aws;
 
 
-    public Local(String url, String terminate){
+    public Local(String url, String outPath, String terminate, App aws){
         this.toManager = new LinkedBlockingQueue<>();
         this.terminate = terminate;
         this.url = url;
+        this.aws = aws;
+        this.outPath = outPath;
     }
 
-    public Local(String url, String terminate, Manager manager){
+    public Local(String url, String outPath, String terminate, Manager manager, App aws){
         this.toManager = new LinkedBlockingQueue<>();
         this.terminate = terminate;
         this.url = url;
         this.manager = manager;
+        this.aws = aws;
+        this.outPath = outPath;
     }
 
     public void initManagerIfNotExists() {
-        if (this.manager == null) {
-            manager = new Manager();
-        }
+//        if (this.manager == null) {
+//            manager = new Manager();
+//        }
         Object[] arr = manager.signIn();
         this.id = (int)arr[0];
         this.toManager = (BlockingQueue<Message>) arr[1];
@@ -47,11 +54,10 @@ public class Local extends Thread {
     public void uploadInputFile() {
         Path source = Paths.get(this.url);
         String name = source.getFileName().toString();
-        this.uploadedUrl = "C:\\Users\\hagai\\Documents\\uni\\year 5\\mevuzarot\\assignments\\Ass1EC2\\src\\main\\java\\org\\example\\S3\\" + name;
-        Path destination = Paths.get(this.uploadedUrl); // Replace with the destination path
+        this.fileKey = "LocalId" + this.id + "input.txt";
 
         try {
-            Files.copy(source, destination, StandardCopyOption.REPLACE_EXISTING);
+            this.aws.uploadFileToS3(this.url, this.fileKey);
             System.out.println("File copied successfully!");
         } catch (Exception e) {
             System.err.println("Error while copying file: " + e.getMessage());
@@ -59,7 +65,7 @@ public class Local extends Thread {
     }
 
     public void sendMsgToManager() {
-        Message msg = new Message(this.id, this.uploadedUrl);
+        Message msg = new Message(this.id, this.fileKey);
         try{
             this.toManager.put(msg);
         } catch (Exception e) {
@@ -67,12 +73,11 @@ public class Local extends Thread {
         }
     }
 
-
-    public void createResHTML(String resURL) {
-        System.out.println("got it" + resURL);
+    public void downloadOutputFile(String outFileKey) {
+        this.aws.downloadFromS3(outFileKey, this.outPath + outFileKey);
     }
 
-    public void sentTerminateSignal() {}
+    public void sendTerminateSignal() {}
 
     public void run() {
         this.initManagerIfNotExists();
@@ -102,7 +107,7 @@ public class Local extends Thread {
                 while (true) {
                     Message message = fromManager.take(); // Wait for a message
                     if (message.localID == id) {
-                        this.createResHTML(message.content);
+                        this.downloadOutputFile(message.content);
                     } else {
                         // Put the message back if it doesn't match
                         fromManager.put(message);

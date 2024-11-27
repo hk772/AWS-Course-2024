@@ -1,9 +1,13 @@
 package org.example.Manager;
 
+import org.example.App;
 import org.example.Messages.Message;
 
 import java.io.File;
 import java.io.FileWriter;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
@@ -25,10 +29,18 @@ public class Manager {
     boolean terminated = false;
     Map<Integer, InputProcessor> inputProcs;
     final Object terminationLock = new Object();
+    final Object signInLock = new Object();
+    App aws;
+    String myDirPath;
 
 
 
-    public Manager() {
+    public Manager(App aws) throws IOException {
+        this.aws = aws;
+        this.myDirPath = System.getProperty("user.dir") + "\\ManagersDir";
+        Files.createDirectories(Paths.get(System.getProperty("user.dir"), "\\ManagersDir"));
+
+
         this.jobs = new LinkedBlockingQueue<>();
         this.inputs = new LinkedBlockingQueue<>();
         this.outputs = new LinkedBlockingQueue<>();
@@ -38,7 +50,7 @@ public class Manager {
         this.finishedUploading = new HashMap<>();
 
         this.inputProcs = new HashMap<>();
-        jobQController = new JobQueueController(jobs, jobsDone, 3, 1);
+        jobQController = new JobQueueController(jobs, jobsDone, 3, 1, this.aws);
 
         jobQController.start();
         this.listenForInputs();
@@ -46,27 +58,27 @@ public class Manager {
     }
 
 
-    private void startOutputFileForNewLocal(String path){
+    private void startOutputFileForNewLocal(String path) {
         File file = new File(path);
-        try{
-            FileWriter myWriter = new FileWriter(this.S3_PATH + "\\" + ids + "out.html");
-            String html = "<!DOCTYPE html>\n" +
-                    "<html>\n" +
-                    "<head>\n" +
-                    "<title>PDF Page 1</title>\n" +
-                    "</head>\n" +
-                    "<body>\n";
+        try (FileWriter myWriter = new FileWriter(this.myDirPath + "\\" + ids + "out.html")) {
+            String html = """
+            <!DOCTYPE html>
+            <html>
+            <head>
+            <title>PDF Page 1</title>
+            </head>
+            <body>
+            """;
             myWriter.write(html);
-            myWriter.close();
-        } catch (Exception e){
-            System.out.println(e.getMessage());
+        } catch (IOException e) {
+            System.err.println("Error creating output file: " + e.getMessage());
         }
     }
 
     public synchronized Object[] signIn() {
-        synchronized (this) {
+        synchronized (this.signInLock) {
             ids++;
-            this.startOutputFileForNewLocal(this.S3_PATH + ids + "out.html");
+            this.startOutputFileForNewLocal(this.myDirPath + ids + "out.html");
             this.jobsCount.put(ids, new Integer[]{0,0});
             this.finishedUploading.put(ids, false);
             return new Object[]{ids, inputs, outputs};
@@ -82,9 +94,11 @@ public class Manager {
                     Message message = inputs.take(); // Wait for a message
                     if (message.content.equals("TERMINATE")) {
                         this.terminate();
-                    }
-                    else{
-                        InputProcessor inputProcessor = new InputProcessor(this, message, jobs, jobsDone);
+                    } else if (message.content.equals("SIGNIN")) {
+                        // TODO: do this
+//                        this.signIn();
+                    } else{
+                        InputProcessor inputProcessor = new InputProcessor(this, message, jobs, jobsDone, this.aws);
                         inputProcessor.start();
                     }
                 }
@@ -110,34 +124,37 @@ public class Manager {
     }
 
 
-    private void handleJobDoneMsg(Message message){
-        try {
-            // add entry to output file
-            FileWriter myWriter = new FileWriter(this.S3_PATH + "//" + message.localID + "out.html", true);
-            myWriter.write(message.content + "\n");
+    private void handleJobDoneMsg(Message message) {
+        String name = message.localID + "out.html";
+        String curPath = this.myDirPath + "\\" + name;
 
-            // update the amount of jobs done for the local and check if itsa the last one
-            synchronized (jobsCountLock) {
-                int done = this.jobsCount.get(message.localID)[0];
-                int notDone = this.jobsCount.get(message.localID)[1];
+        synchronized (jobsCountLock) {
+            try (FileWriter myWriter = new FileWriter(curPath, true)) {
+                // Append job result to the file
+                myWriter.write(message.content + "\n");
 
-                if (done + 1 == notDone && this.finishedUploading.get(message.localID)) {
-                    this.jobsCount.remove(message.localID);
+                    int done = this.jobsCount.get(message.localID)[0];
+                    int notDone = this.jobsCount.get(message.localID)[1];
 
-                    myWriter.write("</body>\n</html>");
-                    this.outputs.put(new Message(message.localID, this.S3_PATH + "//" + message.localID + "out.html"));
+                    // If all jobs are done for this local ID
+                    if (done + 1 == notDone && this.finishedUploading.get(message.localID)) {
+                        this.jobsCount.remove(message.localID);
+                        myWriter.write("</body>\n</html>");
+                        myWriter.close();
+                        // Upload file to S3 and clean up
+                        this.aws.uploadFileToS3(curPath, name);
+                        this.outputs.put(new Message(message.localID, name));
+//                        Files.delete(Paths.get(curPath));
 
-                    if (this.jobsCount.isEmpty()) {
-                        System.out.println("finished");
+                        if (this.jobsCount.isEmpty()) {
+                            System.out.println("Finished all jobs");
+                        }
+                    } else {
+                        this.jobsCount.put(message.localID, new Integer[]{done + 1, notDone});
                     }
-                } else {
-                    this.jobsCount.put(message.localID, new Integer[]{done + 1, notDone});
-                }
+            } catch (IOException | InterruptedException e) {
+                System.err.println("Error handling job done: " + e.getMessage());
             }
-            myWriter.close();
-
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
         }
     }
 

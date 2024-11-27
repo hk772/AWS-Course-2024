@@ -1,8 +1,10 @@
 package org.example.Manager;
 
+import org.example.App;
 import org.example.Messages.Message;
 import org.example.Worker.Worker;
 
+import java.io.IOException;
 import java.util.LinkedList;
 import java.util.concurrent.BlockingQueue;
 
@@ -14,13 +16,15 @@ public class JobQueueController extends Thread {
     int jobsPerWorker;
     LinkedList<Worker> workers;
     boolean allWorkersTerminated = false;
+    App aws;
 
-    public JobQueueController(BlockingQueue<Message> jobsQ, BlockingQueue<Message> jobsDoneQ, int maxWorkersCount, int jobsPerWorker) {
+    public JobQueueController(BlockingQueue<Message> jobsQ, BlockingQueue<Message> jobsDoneQ, int maxWorkersCount, int jobsPerWorker, App aws) {
         this.jobsQ = jobsQ;
         this.jobsDoneQ = jobsDoneQ;
 //        this.MAX_WORKERS_COUNT = maxWorkersCount;
         this.jobsPerWorker = jobsPerWorker;
         workers = new LinkedList<>();
+        this.aws = aws;
     }
 
     public void run() {
@@ -36,7 +40,12 @@ public class JobQueueController extends Thread {
     }
 
     private void createWorker() {
-        Worker w = new Worker(this.jobsQ, this.jobsDoneQ);
+        Worker w = null;
+        try {
+            w = new Worker(this.jobsQ, this.jobsDoneQ, this.aws, this.workersCount);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
         workersCount += 1;
         w.start();
     }
