@@ -34,7 +34,7 @@ public class Worker extends Thread {
     }
 
 
-    private Message execute(String job, int id){
+    private Message execute(String job, String id){
         String[] parts = job.split("\t");
         String op = parts[0];
         String keyName = parts[1];

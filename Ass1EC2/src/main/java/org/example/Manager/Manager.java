@@ -24,12 +24,13 @@ public class Manager {
 //    BlockingQueue<Message> inputs;
 //    BlockingQueue<Message> outputs;
 //    BlockingQueue<Message> jobsDone;
-    int ids = 0;
-    Map<Integer, Integer[]> jobsCount;
-    Map<Integer, Boolean> finishedUploading;
+//    final int EXPECTED_AMOUNT_OF_LOCALS = 5;
+//    int ids = EXPECTED_AMOUNT_OF_LOCALS;
+    Map<String, Integer[]> jobsCount;
+    Map<String, Boolean> finishedUploading;
     final Object jobsCountLock = new Object();
     boolean terminated = false;
-    Map<Integer, InputProcessor> inputProcs;
+    Map<String, InputProcessor> inputProcs;
     final Object terminationLock = new Object();
     final Object signInLock = new Object();
     App aws;
@@ -41,15 +42,15 @@ public class Manager {
     String jobsDoneQUrl;
 
 
+
     public Manager() throws IOException {
         this.aws = new App();
         this.initQs();
+//        this.initSignIns();
 
         this.myDirPath = System.getProperty("user.dir") + "\\ManagersDir";
         Files.createDirectories(Paths.get(System.getProperty("user.dir"), "\\ManagersDir"));
-
-
-
+        Files.createDirectories(Paths.get(System.getProperty("user.dir"), "\\InputProcessorsDir"));
 
         this.jobsCount = new HashMap<>();
         this.finishedUploading = new HashMap<>();
@@ -69,10 +70,15 @@ public class Manager {
         this.jobsDoneQUrl = this.aws.getQueueUrl(App.jobDoneQ);
     }
 
+//    private void initSignIns() throws JsonProcessingException {
+//        for(int i = 0; i < this.EXPECTED_AMOUNT_OF_LOCALS; i++){
+//            this.aws.pushToSQS(this.signInQUrl, new Message(i+1, "Available Id"));
+//        }
+//    }
 
     private void startOutputFileForNewLocal(String path) {
         File file = new File(path);
-        try (FileWriter myWriter = new FileWriter(this.myDirPath + "\\" + ids + "out.html")) {
+        try (FileWriter myWriter = new FileWriter(path)) {
             String html = """
             <!DOCTYPE html>
             <html>
@@ -87,13 +93,11 @@ public class Manager {
         }
     }
 
-    public synchronized int signIn() {
+    public void signIn(String localId) {
         synchronized (this.signInLock) {
-            ids++;
-            this.startOutputFileForNewLocal(this.myDirPath + ids + "out.html");
-            this.jobsCount.put(ids, new Integer[]{0,0});    // for local 2, 12/14 jobs done
-            this.finishedUploading.put(ids, false);
-            return ids;
+            this.startOutputFileForNewLocal(this.myDirPath + "\\" + localId + "out.html");
+            this.jobsCount.put(localId, new Integer[]{0,0});    // for local 2, 12/14 jobs done
+            this.finishedUploading.put(localId, false);
         }
     }
 
@@ -107,10 +111,8 @@ public class Manager {
                     if (message != null) {
                         if (message.content.equals("TERMINATE")) {
                             this.terminate();
-                        } else if (message.content.equals("SIGNIN")) {
-                            // TODO: do this
-//                        this.signIn();
                         } else{
+                            this.signIn(message.localID);
                             InputProcessor inputProcessor = new InputProcessor(this, message, this.jobsQUrl, this.jobsDoneQUrl);
                             inputProcessor.start();
                         }
@@ -128,7 +130,7 @@ public class Manager {
         messageThread.start();
     }
 
-    private void checkIfFinishedJobsForLocal(int id){
+    private void checkIfFinishedJobsForLocal(String id){
         int done = this.jobsCount.get(id)[0];
         int all = this.jobsCount.get(id)[1];
 
@@ -151,7 +153,11 @@ public class Manager {
                 System.out.println(e.getMessage());
             }
 
-            //Files.delete(Paths.get(curPath));
+            try {
+                Files.delete(Paths.get(curPath));
+            } catch (IOException e) {
+                System.out.println(e.getMessage());
+            }
         }
     }
 

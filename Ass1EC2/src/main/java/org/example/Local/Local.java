@@ -1,23 +1,21 @@
 package org.example.Local;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import org.example.App;
 import org.example.Messages.Message;
 import org.example.Manager.Manager;
 import org.example.MsgJsonizer;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
 
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.Scanner;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
+
 
 public class Local extends Thread {
 //    BlockingQueue<Message> toManager;
 //    BlockingQueue<Message> fromManager;
-    int id;
+    String id;
     Manager manager;
     String terminate;
     String url;
@@ -35,6 +33,10 @@ public class Local extends Thread {
         this.url = url;
         this.aws = new App();
         this.outPath = outPath;
+//        String macAddress = getMacAddress();
+        long timestamp = System.currentTimeMillis();
+        this.id = /*macAddress +*/ "-" + timestamp + "-";
+
     }
 
     public Local(String url, String outPath, String terminate, Manager manager){
@@ -44,12 +46,33 @@ public class Local extends Thread {
         this.manager = manager;
         this.aws = new App();
         this.outPath = outPath;
+//        String macAddress = getMacAddress();
+        long timestamp = System.currentTimeMillis();
+        this.id = /*macAddress +*/ "-" + timestamp + "-";
     }
 
     public void initManagerIfNotExists() {
-        this.id = manager.signIn();
-        this.inputQUrl = this.aws.getQueueUrl(App.inputQ);
-        this.outputQUrl = this.aws.getQueueUrl(App.outputQ);
+//        this.id = manager.signIn();
+//        Message msg = null;
+//        while(msg == null){
+//            msg = this.aws.popFromSQSAutoDel(this.signInQUrl);
+//            if (msg != null){
+//                this.id = msg.localID;
+//                try {
+//                    this.aws.pushToSQS(this.inputQUrl, new Message(this.id, "SIGNIN"));
+//                } catch (JsonProcessingException e) {
+//                    System.out.println("local failed to sign in");
+//                }
+//            }
+//            else {
+//                try {
+//                    sleep(1000);
+//                } catch (InterruptedException e) {
+//                    System.out.println("Local Sleep interrupted");
+//                }
+//            }
+//        }
+
     }
 
     public void uploadInputFile() {
@@ -84,8 +107,11 @@ public class Local extends Thread {
     public void sendTerminateSignal() {}
 
     public void run() {
-        System.out.println("Local is running");
+        System.out.println("Local is running, id: " + this.id);
         try {
+            this.inputQUrl = this.aws.getQueueUrl(App.inputQ);
+            this.outputQUrl = this.aws.getQueueUrl(App.outputQ);
+
             this.initManagerIfNotExists();
             this.uploadInputFile();
             this.sendMsgToManager();
@@ -117,7 +143,7 @@ public class Local extends Thread {
                     Object[] obj = aws.popFromSQS(this.outputQUrl);
                     if (obj[0] != null) {
                         Message msg = (Message) obj[0];
-                        if (msg.localID == id) {
+                        if (msg.localID.equals(id)) {
                             this.aws.deleteMsgFromSqs((DeleteMessageRequest) obj[1]);
                             this.downloadOutputFile(msg.content);
                         } else {

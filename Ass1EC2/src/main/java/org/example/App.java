@@ -17,6 +17,7 @@ import org.example.Messages.Message;
 
 public class App {
 
+    public static String signInQ = "SIGNIN";
     public static String inputQ = "INPUTS";
     public static String outputQ = "OUTPUTS";
     public static String jobQ = "JOBS";
@@ -210,6 +211,7 @@ public class App {
 //        app.uploadFileToS3("C:\\Users\\hagai\\Documents\\uni\\year 5\\mevuzarot\\assignments\\Ass1EC2\\src\\main\\java\\org\\example\\PDFS\\ass3.pdf", "ass3.pdf");
 //
 //
+//        app.createQueue(App.signInQ);
 //        app.createQueue(App.inputQ);
 //        app.createQueue(App.outputQ);
 //        app.createQueue(App.jobQ);

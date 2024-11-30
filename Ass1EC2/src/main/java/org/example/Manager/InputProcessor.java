@@ -7,6 +7,7 @@ import org.example.Messages.Message;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
@@ -17,11 +18,12 @@ class InputProcessor extends Thread{
 //    BlockingQueue<Message> jobsQ;
 //    BlockingQueue<Message> jobsDoneQ;
     Manager manager;
-    int localID;
+    String localID;
     boolean terminate = false;
     App aws;
     String jobsQUrl;
     String jobsDoneQUrl;
+    String myDirPath;
 
     public InputProcessor(Manager manager, Message msg, String jobsQUrl, String jobsDoneQUrl) {
         this.keyName = msg.content;
@@ -31,6 +33,7 @@ class InputProcessor extends Thread{
         this.manager = manager;
         this.aws = new App();
         this.url = System.getProperty("user.dir") +"\\InputProcessorsDir\\"+ this.keyName;
+
     }
 
 
@@ -53,7 +56,8 @@ class InputProcessor extends Thread{
                     throw new RuntimeException(e);
                 }
             });
-            // TODO : delete downloaded file and better handlke exceptions
+            // TODO : better handlke exceptions
+            Files.delete(Paths.get(this.url));
             this.aws.pushToSQS(this.jobsDoneQUrl, new Message(this.localID, "UPLOAD DONE-" + jobsCount.get()));
 //            this.jobsDoneQ.put();
         } catch (Exception e) {

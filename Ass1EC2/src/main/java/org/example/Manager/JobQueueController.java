@@ -51,6 +51,7 @@ public class JobQueueController extends Thread {
         Worker w = null;
         try {
             w = new Worker(this.jobsQUrl, this.jobsDoneQUrl, this.workersCount);
+            System.out.println("created worker");
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
