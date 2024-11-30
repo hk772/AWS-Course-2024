@@ -6,11 +6,8 @@ import org.example.Worker.Worker;
 
 import java.io.IOException;
 import java.util.LinkedList;
-import java.util.concurrent.BlockingQueue;
 
 public class JobQueueController extends Thread {
-//    BlockingQueue<Message> jobsQ;
-//    BlockingQueue<Message> jobsDoneQ;
     int workersCount = 0;
     int MAX_WORKERS_COUNT = 10;
     int jobsPerWorker;

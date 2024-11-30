@@ -9,7 +9,6 @@ import software.amazon.awssdk.services.s3.model.*;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.*;
 
-import java.io.File;
 import java.nio.file.Paths;
 import java.util.Map;
 
@@ -17,7 +16,6 @@ import org.example.Messages.Message;
 
 public class App {
 
-    public static String signInQ = "SIGNIN";
     public static String inputQ = "INPUTS";
     public static String outputQ = "OUTPUTS";
     public static String jobQ = "JOBS";

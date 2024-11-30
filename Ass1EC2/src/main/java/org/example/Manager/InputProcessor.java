@@ -8,22 +8,18 @@ import org.example.Messages.Message;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
 class InputProcessor extends Thread{
     String keyName;
     String url;
-//    BlockingQueue<Message> jobsQ;
-//    BlockingQueue<Message> jobsDoneQ;
     Manager manager;
     String localID;
     boolean terminate = false;
     App aws;
     String jobsQUrl;
     String jobsDoneQUrl;
-    String myDirPath;
 
     public InputProcessor(Manager manager, Message msg, String jobsQUrl, String jobsDoneQUrl) {
         this.keyName = msg.content;
@@ -50,7 +46,6 @@ class InputProcessor extends Thread{
                 try {
                     // TODO: handlke exceptions better
                     this.aws.pushToSQS(this.jobsQUrl, new Message(this.localID, line));
-//                    this.jobsQ.put(new Message(this.localID, line));
                     jobsCount.addAndGet(1);
                 } catch (JsonProcessingException e) {
                     throw new RuntimeException(e);
@@ -68,7 +63,5 @@ class InputProcessor extends Thread{
     public void terminate() {
         this.terminate = true;
     }
-
-
 
 }

@@ -1,10 +1,8 @@
 package org.example.Local;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import org.example.App;
 import org.example.Messages.Message;
 import org.example.Manager.Manager;
-import org.example.MsgJsonizer;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
 
 import java.nio.file.Path;
@@ -13,8 +11,6 @@ import java.util.Scanner;
 
 
 public class Local extends Thread {
-//    BlockingQueue<Message> toManager;
-//    BlockingQueue<Message> fromManager;
     String id;
     Manager manager;
     String terminate;
@@ -28,7 +24,6 @@ public class Local extends Thread {
 
 
     public Local(String url, String outPath, String terminate){
-//        this.toManager = new LinkedBlockingQueue<>();
         this.terminate = terminate;
         this.url = url;
         this.aws = new App();
@@ -37,41 +32,9 @@ public class Local extends Thread {
         long timestamp = System.currentTimeMillis();
         this.id = /*macAddress +*/ "-" + timestamp + "-";
 
-    }
-
-    public Local(String url, String outPath, String terminate, Manager manager){
-//        this.toManager = new LinkedBlockingQueue<>();
-        this.terminate = terminate;
-        this.url = url;
-        this.manager = manager;
-        this.aws = new App();
-        this.outPath = outPath;
-//        String macAddress = getMacAddress();
-        long timestamp = System.currentTimeMillis();
-        this.id = /*macAddress +*/ "-" + timestamp + "-";
     }
 
     public void initManagerIfNotExists() {
-//        this.id = manager.signIn();
-//        Message msg = null;
-//        while(msg == null){
-//            msg = this.aws.popFromSQSAutoDel(this.signInQUrl);
-//            if (msg != null){
-//                this.id = msg.localID;
-//                try {
-//                    this.aws.pushToSQS(this.inputQUrl, new Message(this.id, "SIGNIN"));
-//                } catch (JsonProcessingException e) {
-//                    System.out.println("local failed to sign in");
-//                }
-//            }
-//            else {
-//                try {
-//                    sleep(1000);
-//                } catch (InterruptedException e) {
-//                    System.out.println("Local Sleep interrupted");
-//                }
-//            }
-//        }
 
     }
 

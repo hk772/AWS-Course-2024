@@ -17,15 +17,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 public class Manager {
 
-//    BlockingQueue<Message> jobs;
     JobQueueController jobQController;
-//    final String WORKER_JAR = "worker.jar";
-//    final String S3_PATH = "C:\\Users\\hagai\\Documents\\uni\\year 5\\mevuzarot\\assignments\\Ass1EC2\\src\\main\\java\\org\\example\\S3";
-//    BlockingQueue<Message> inputs;
-//    BlockingQueue<Message> outputs;
-//    BlockingQueue<Message> jobsDone;
-//    final int EXPECTED_AMOUNT_OF_LOCALS = 5;
-//    int ids = EXPECTED_AMOUNT_OF_LOCALS;
     Map<String, Integer[]> jobsCount;
     Map<String, Boolean> finishedUploading;
     final Object jobsCountLock = new Object();
@@ -46,7 +38,6 @@ public class Manager {
     public Manager() throws IOException {
         this.aws = new App();
         this.initQs();
-//        this.initSignIns();
 
         this.myDirPath = System.getProperty("user.dir") + "\\ManagersDir";
         Files.createDirectories(Paths.get(System.getProperty("user.dir"), "\\ManagersDir"));
@@ -69,12 +60,6 @@ public class Manager {
         this.outputsQUrl = this.aws.getQueueUrl(App.outputQ);
         this.jobsDoneQUrl = this.aws.getQueueUrl(App.jobDoneQ);
     }
-
-//    private void initSignIns() throws JsonProcessingException {
-//        for(int i = 0; i < this.EXPECTED_AMOUNT_OF_LOCALS; i++){
-//            this.aws.pushToSQS(this.signInQUrl, new Message(i+1, "Available Id"));
-//        }
-//    }
 
     private void startOutputFileForNewLocal(String path) {
         File file = new File(path);
@@ -134,7 +119,6 @@ public class Manager {
         int done = this.jobsCount.get(id)[0];
         int all = this.jobsCount.get(id)[1];
 
-        // If all jobs are done for this local ID
         if (done == all && this.finishedUploading.get(id)) {
             this.jobsCount.remove(id);
             String name = id + "out.html";

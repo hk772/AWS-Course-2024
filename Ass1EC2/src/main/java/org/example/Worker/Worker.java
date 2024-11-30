@@ -40,7 +40,6 @@ public class Worker extends Thread {
         String keyName = parts[1];
         String name = keyName.split("\\.")[0];
 
-
         //download from s3
         String address = System.getProperty("user.dir") + "\\WorkersDir" + this.workerid + "\\" + keyName;
         this.aws.downloadFromS3(keyName, address);
@@ -48,10 +47,6 @@ public class Worker extends Thread {
         String outputAddress = System.getProperty("user.dir") + "\\WorkersDir" + this.workerid + "\\";
         String contentStart = op + "\t" + keyName + "\t";
         String newName = name;
-
-//        System.out.println("worker -----------------");
-//        System.out.println("address: " + address);
-//        System.out.println("keyName: " + keyName);
 
         try{
             switch (op) {
@@ -80,9 +75,7 @@ public class Worker extends Thread {
             return new Message(id, contentStart + outKeyName);
         } catch (Exception e){
             return new Message(id, contentStart + e.getMessage());
-
         }
-
     }
 
     @Override
