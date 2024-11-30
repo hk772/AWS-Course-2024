@@ -64,7 +64,7 @@ public class App {
                     .build();
 
             this.s3.putObject(putObjectRequest, Paths.get(filePath));
-            System.out.println("File uploaded successfully.");
+            System.out.println("File uploaded successfully: " + keyName);
         } catch (S3Exception e) {
             System.err.println(e.awsErrorDetails().errorMessage());
         }
@@ -78,7 +78,7 @@ public class App {
                     .build();
 
             this.s3.getObject(getObjectRequest, Paths.get(downloadPath));
-            System.out.println("File downloaded successfully.");
+            System.out.println("File downloaded successfully: " + keyName);
         } catch (S3Exception e) {
             System.err.println(e.awsErrorDetails().errorMessage());
         }
@@ -203,7 +203,7 @@ public class App {
 
 
     public static void main(String[] args) {
-        App app = new App();
+//        App app = new App();
 //        app.createS3Bucket(App.BUCKET_NAME);
 //        app.uploadFileToS3("C:\\Users\\hagai\\Documents\\uni\\year 5\\mevuzarot\\assignments\\Ass1EC2\\src\\main\\java\\org\\example\\PDFS\\ass1.pdf", "ass1.pdf");
 //        app.uploadFileToS3("C:\\Users\\hagai\\Documents\\uni\\year 5\\mevuzarot\\assignments\\Ass1EC2\\src\\main\\java\\org\\example\\PDFS\\ass2.pdf", "ass2.pdf");
@@ -215,14 +215,14 @@ public class App {
 //        app.createQueue(App.jobQ);
 //        app.createQueue(App.jobDoneQ);
 
-        String inputsQUrl = app.getQueueUrl(App.inputQ);
-        Object ans = null;
-        while (ans == null) {
-            ans = app.popFromSQSAutoDel(inputsQUrl);
-            System.out.println("try");
-        }
-        Message msg = (Message) ans;
-        System.out.println("msg id " + msg.localID + "\nmsg content: " + msg.content);
+//        String inputsQUrl = app.getQueueUrl(App.inputQ);
+//        Object ans = null;
+//        while (ans == null) {
+//            ans = app.popFromSQSAutoDel(inputsQUrl);
+//            System.out.println("try");
+//        }
+//        Message msg = (Message) ans;
+//        System.out.println("msg id " + msg.localID + "\nmsg content: " + msg.content);
 
     }
 }

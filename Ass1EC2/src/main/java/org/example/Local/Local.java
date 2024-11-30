@@ -29,20 +29,20 @@ public class Local extends Thread {
     String outputQUrl;
 
 
-    public Local(String url, String outPath, String terminate, App aws){
+    public Local(String url, String outPath, String terminate){
 //        this.toManager = new LinkedBlockingQueue<>();
         this.terminate = terminate;
         this.url = url;
-        this.aws = aws;
+        this.aws = new App();
         this.outPath = outPath;
     }
 
-    public Local(String url, String outPath, String terminate, Manager manager, App aws){
+    public Local(String url, String outPath, String terminate, Manager manager){
 //        this.toManager = new LinkedBlockingQueue<>();
         this.terminate = terminate;
         this.url = url;
         this.manager = manager;
-        this.aws = aws;
+        this.aws = new App();
         this.outPath = outPath;
     }
 
@@ -55,12 +55,11 @@ public class Local extends Thread {
     public void uploadInputFile() {
         System.out.println("Uploading input file...");
         Path source = Paths.get(this.url);
-        String name = source.getFileName().toString();
         this.fileKey = "LocalId" + this.id + "input.txt";
 
         try {
             this.aws.uploadFileToS3(this.url, this.fileKey);
-            System.out.println("input File uploaded successfully!");
+            System.out.println("Local: uploaded input file");
         } catch (Exception e) {
             System.err.println("Error while copying file: " + e.getMessage());
         }
@@ -86,9 +85,13 @@ public class Local extends Thread {
 
     public void run() {
         System.out.println("Local is running");
-        this.initManagerIfNotExists();
-        this.uploadInputFile();
-        this.sendMsgToManager();
+        try {
+            this.initManagerIfNotExists();
+            this.uploadInputFile();
+            this.sendMsgToManager();
+        } catch (Exception e) {
+            System.err.println(e.getMessage() + "\n restart");
+        }
 
 
         Thread inputThread = new Thread(() -> {

@@ -1,5 +1,6 @@
 package org.example.Manager;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import org.example.App;
 import org.example.Messages.Message;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
@@ -90,7 +91,7 @@ public class Manager {
         synchronized (this.signInLock) {
             ids++;
             this.startOutputFileForNewLocal(this.myDirPath + ids + "out.html");
-            this.jobsCount.put(ids, new Integer[]{0,0});
+            this.jobsCount.put(ids, new Integer[]{0,0});    // for local 2, 12/14 jobs done
             this.finishedUploading.put(ids, false);
             return ids;
         }
@@ -127,12 +128,40 @@ public class Manager {
         messageThread.start();
     }
 
+    private void checkIfFinishedJobsForLocal(int id){
+        int done = this.jobsCount.get(id)[0];
+        int all = this.jobsCount.get(id)[1];
+
+        // If all jobs are done for this local ID
+        if (done == all && this.finishedUploading.get(id)) {
+            this.jobsCount.remove(id);
+            String name = id + "out.html";
+            String curPath = this.myDirPath + "\\" + name;
+
+            try (FileWriter myWriter = new FileWriter(curPath, true)) {
+                myWriter.write("</body>\n</html>");
+            } catch (IOException e) {
+                System.err.println("Error handling job done: " + e.getMessage());
+            }
+
+            this.aws.uploadFileToS3(curPath, name);
+            try {
+                this.aws.pushToSQS(this.outputsQUrl, new Message(id, name));
+            } catch (JsonProcessingException e) {
+                System.out.println(e.getMessage());
+            }
+
+            //Files.delete(Paths.get(curPath));
+        }
+    }
+
     private void handleUploadDoneMsg(Message message){
         this.finishedUploading.put(message.localID, true);
         int totalJobs = Integer.parseInt(message.content.split("-")[1]);
         synchronized (jobsCountLock) {
             int done = jobsCount.get(message.localID)[0];
             jobsCount.put(message.localID, new Integer[]{done,totalJobs});
+            this.checkIfFinishedJobsForLocal(message.localID);
         }
         synchronized (this.terminationLock) {
             this.inputProcs.remove(message.localID);
@@ -146,32 +175,16 @@ public class Manager {
 
         synchronized (jobsCountLock) {
             try (FileWriter myWriter = new FileWriter(curPath, true)) {
-                // Append job result to the file
                 myWriter.write(message.content + "\n");
-
-                    int done = this.jobsCount.get(message.localID)[0];
-                    int notDone = this.jobsCount.get(message.localID)[1];
-
-                    // If all jobs are done for this local ID
-                    if (done + 1 == notDone && this.finishedUploading.get(message.localID)) {
-                        this.jobsCount.remove(message.localID);
-                        myWriter.write("</body>\n</html>");
-                        myWriter.close();
-                        // Upload file to S3 and clean up
-                        this.aws.uploadFileToS3(curPath, name);
-                        this.aws.pushToSQS(this.outputsQUrl, new Message(message.localID, name));
-
-//                        this.outputs.put(new Message(message.localID, name));
-//                        Files.delete(Paths.get(curPath));
-
-                        if (this.jobsCount.isEmpty()) {
-                            System.out.println("Finished all jobs");
-                        }
-                    } else {
-                        this.jobsCount.put(message.localID, new Integer[]{done + 1, notDone});
-                    }
+                this.jobsCount.get(message.localID)[0]++;
             } catch (IOException e) {
                 System.err.println("Error handling job done: " + e.getMessage());
+            }
+
+            this.checkIfFinishedJobsForLocal(message.localID);
+
+            if (this.jobsCount.isEmpty()) {
+                System.out.println("Finished all jobs");
             }
         }
     }
