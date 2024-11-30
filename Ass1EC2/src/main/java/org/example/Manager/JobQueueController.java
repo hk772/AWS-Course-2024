@@ -9,22 +9,24 @@ import java.util.LinkedList;
 import java.util.concurrent.BlockingQueue;
 
 public class JobQueueController extends Thread {
-    BlockingQueue<Message> jobsQ;
-    BlockingQueue<Message> jobsDoneQ;
+//    BlockingQueue<Message> jobsQ;
+//    BlockingQueue<Message> jobsDoneQ;
     int workersCount = 0;
     int MAX_WORKERS_COUNT = 10;
     int jobsPerWorker;
     LinkedList<Worker> workers;
     boolean allWorkersTerminated = false;
     App aws;
+    String jobsQUrl;
+    String jobsDoneQUrl;
 
-    public JobQueueController(BlockingQueue<Message> jobsQ, BlockingQueue<Message> jobsDoneQ, int maxWorkersCount, int jobsPerWorker, App aws) {
-        this.jobsQ = jobsQ;
-        this.jobsDoneQ = jobsDoneQ;
+    public JobQueueController(String jobsQUrl, String jobsDoneQUrl, int maxWorkersCount, int jobsPerWorker) {
+        this.jobsQUrl = jobsQUrl;
+        this.jobsDoneQUrl = jobsDoneQUrl;
 //        this.MAX_WORKERS_COUNT = maxWorkersCount;
         this.jobsPerWorker = jobsPerWorker;
         workers = new LinkedList<>();
-        this.aws = aws;
+        this.aws = new App();
     }
 
     public void run() {
@@ -32,9 +34,15 @@ public class JobQueueController extends Thread {
             if(this.workersCount == this.MAX_WORKERS_COUNT) {
                 // do nothing?
             } else if (this.workersCount < this.MAX_WORKERS_COUNT) {
-                if (jobsQ.size() > this.workersCount * this.jobsPerWorker) {
+                int jobsQSize = this.aws.getQueueSize(this.jobsQUrl);
+                if (jobsQSize > this.workersCount * this.jobsPerWorker) {
                     this.createWorker();
                 }
+            }
+            try {
+                sleep(100);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
             }
         }
     }
@@ -42,7 +50,7 @@ public class JobQueueController extends Thread {
     private void createWorker() {
         Worker w = null;
         try {
-            w = new Worker(this.jobsQ, this.jobsDoneQ, this.aws, this.workersCount);
+            w = new Worker(this.jobsQUrl, this.jobsDoneQUrl, this.workersCount);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

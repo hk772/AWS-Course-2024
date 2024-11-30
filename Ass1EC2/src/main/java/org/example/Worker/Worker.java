@@ -1,5 +1,6 @@
 package org.example.Worker;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import org.example.App;
 import org.example.Messages.Message;
 
@@ -11,20 +12,22 @@ import java.util.concurrent.BlockingQueue;
 
 public class Worker extends Thread {
 
-    BlockingQueue<Message> jobsQ;
-    BlockingQueue<Message> jobsDoneQ;
+//    BlockingQueue<Message> jobsQ;
+//    BlockingQueue<Message> jobsDoneQ;
     Operations operations;
     String outAddress;// = "C:\\Users\\hagai\\Documents\\uni\\year 5\\mevuzarot\\assignments\\Ass1EC2\\src\\main\\java\\org\\example\\S3\\worker ";
     boolean terminated = false;
     App aws;
     int workerid;
     String myDirPath;
+    String jobsQUrl;
+    String jobsDoneQUrl;
 
-    public Worker(BlockingQueue<Message> jobsQ, BlockingQueue<Message> jobsDoneQ, App aws, int id) throws IOException {
-        this.jobsQ = jobsQ;
-        this.jobsDoneQ = jobsDoneQ;
+    public Worker(String jobsQUrl, String jobsDoneQUrl, int id) throws IOException {
+        this.jobsQUrl = jobsQUrl;
+        this.jobsDoneQUrl = jobsDoneQUrl;
         this.operations = new Operations();
-        this.aws = aws;
+        this.aws = new App();
         this.workerid = id;
         this.myDirPath = System.getProperty("user.dir") + "\\WorkersDir" + this.workerid;
         Files.createDirectories(Paths.get(System.getProperty("user.dir"), "\\WorkersDir" + this.workerid));
@@ -46,9 +49,9 @@ public class Worker extends Thread {
         String contentStart = op + "\t" + keyName + "\t";
         String newName = name;
 
-        System.out.println("worker -----------------");
-        System.out.println("address: " + address);
-        System.out.println("keyName: " + keyName);
+//        System.out.println("worker -----------------");
+//        System.out.println("address: " + address);
+//        System.out.println("keyName: " + keyName);
 
         try{
             switch (op) {
@@ -62,7 +65,7 @@ public class Worker extends Thread {
                     break;
                 case "ToText":
                     newName += "ToText.txt";
-                    operations.performOperation(2, address, outputAddress  + newName);
+                    operations.performOperation(3, address, outputAddress  + newName);
                     break;
             }
 
@@ -86,10 +89,17 @@ public class Worker extends Thread {
     public void run() {
         while (!this.terminated) {
             try {
-                Message msg = jobsQ.take();
-                Message msgDone = this.execute(msg.content, msg.localID);
-                jobsDoneQ.put(msgDone);
+                // TODO handle exception better!!
+                Message msg = this.aws.popFromSQSAutoDel(this.jobsQUrl);
+                if (msg != null) {
+                    Message msgDone = this.execute(msg.content, msg.localID);
+                    this.aws.pushToSQS(this.jobsDoneQUrl, msgDone);
+                } else{
+                    Thread.sleep(100);
+                }
             } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            } catch (JsonProcessingException e) {
                 throw new RuntimeException(e);
             }
         }

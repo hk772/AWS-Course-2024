@@ -8,4 +8,23 @@ public class Message {
         this.localID = id;
         this.content = content;
     }
+
+    public Message() {
+    }
+
+    public int getLocalID() {
+        return localID;
+    }
+
+    public void setLocalID(int localID) {
+        this.localID = localID;
+    }
+
+    public String getContent() {
+        return content;
+    }
+
+    public void setContent(String content) {
+        this.content = content;
+    }
 }

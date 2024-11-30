@@ -10,7 +10,7 @@ public class Main {
         App aws = new App();
         Manager manager = null;
         try {
-            manager = new Manager(aws);
+            manager = new Manager();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
