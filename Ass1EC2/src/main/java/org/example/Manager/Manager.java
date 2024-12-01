@@ -3,7 +3,6 @@ package org.example.Manager;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import org.example.App;
 import org.example.Messages.Message;
-import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -12,8 +11,6 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 
 public class Manager {
 
@@ -39,9 +36,9 @@ public class Manager {
         this.aws = new App();
         this.initQs();
 
-        this.myDirPath = System.getProperty("user.dir") + "\\ManagersDir";
-        Files.createDirectories(Paths.get(System.getProperty("user.dir"), "\\ManagersDir"));
-        Files.createDirectories(Paths.get(System.getProperty("user.dir"), "\\InputProcessorsDir"));
+        this.myDirPath = System.getProperty("user.dir") + "/ManagersDir";
+        Files.createDirectories(Paths.get(System.getProperty("user.dir"), "/ManagersDir"));
+        Files.createDirectories(Paths.get(System.getProperty("user.dir"), "/InputProcessorsDir"));
 
         this.jobsCount = new HashMap<>();
         this.finishedUploading = new HashMap<>();
@@ -80,7 +77,7 @@ public class Manager {
 
     public void signIn(String localId) {
         synchronized (this.signInLock) {
-            this.startOutputFileForNewLocal(this.myDirPath + "\\" + localId + "out.html");
+            this.startOutputFileForNewLocal(this.myDirPath + "/" + localId + "out.html");
             this.jobsCount.put(localId, new Integer[]{0,0});    // for local 2, 12/14 jobs done
             this.finishedUploading.put(localId, false);
         }
@@ -122,7 +119,7 @@ public class Manager {
         if (done == all && this.finishedUploading.get(id)) {
             this.jobsCount.remove(id);
             String name = id + "out.html";
-            String curPath = this.myDirPath + "\\" + name;
+            String curPath = this.myDirPath + "/" + name;
 
             try (FileWriter myWriter = new FileWriter(curPath, true)) {
                 myWriter.write("</body>\n</html>");
@@ -146,11 +143,11 @@ public class Manager {
     }
 
     private void handleUploadDoneMsg(Message message){
-        this.finishedUploading.put(message.localID, true);
         int totalJobs = Integer.parseInt(message.content.split("-")[1]);
         synchronized (jobsCountLock) {
             int done = jobsCount.get(message.localID)[0];
             jobsCount.put(message.localID, new Integer[]{done,totalJobs});
+            this.finishedUploading.put(message.localID, true);
             this.checkIfFinishedJobsForLocal(message.localID);
         }
         synchronized (this.terminationLock) {
@@ -161,7 +158,7 @@ public class Manager {
 
     private void handleJobDoneMsg(Message message) {
         String name = message.localID + "out.html";
-        String curPath = this.myDirPath + "\\" + name;
+        String curPath = this.myDirPath + "/" + name;
 
         synchronized (jobsCountLock) {
             try (FileWriter myWriter = new FileWriter(curPath, true)) {
@@ -215,6 +212,16 @@ public class Manager {
         }
     }
 
+
+    public static void main(String[] args) {
+        try{
+            new Manager();
+        } catch (Exception e){
+            System.out.println(e.getMessage());
+            System.exit(1);
+        }
+
+    }
 
 }
 

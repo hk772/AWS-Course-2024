@@ -202,14 +202,13 @@ public class App {
 
 
     public static void main(String[] args) {
-//        App app = new App();
+        App app = new App();
 //        app.createS3Bucket(App.BUCKET_NAME);
 //        app.uploadFileToS3("C:\\Users\\hagai\\Documents\\uni\\year 5\\mevuzarot\\assignments\\Ass1EC2\\src\\main\\java\\org\\example\\PDFS\\ass1.pdf", "ass1.pdf");
 //        app.uploadFileToS3("C:\\Users\\hagai\\Documents\\uni\\year 5\\mevuzarot\\assignments\\Ass1EC2\\src\\main\\java\\org\\example\\PDFS\\ass2.pdf", "ass2.pdf");
 //        app.uploadFileToS3("C:\\Users\\hagai\\Documents\\uni\\year 5\\mevuzarot\\assignments\\Ass1EC2\\src\\main\\java\\org\\example\\PDFS\\ass3.pdf", "ass3.pdf");
 //
 //
-//        app.createQueue(App.signInQ);
 //        app.createQueue(App.inputQ);
 //        app.createQueue(App.outputQ);
 //        app.createQueue(App.jobQ);
@@ -223,6 +222,8 @@ public class App {
 //        }
 //        Message msg = (Message) ans;
 //        System.out.println("msg id " + msg.localID + "\nmsg content: " + msg.content);
+        String managerJarPath = "C:\\Users\\hagai\\Documents\\uni\\year 5\\mevuzarot\\assignments\\Jars Newest\\Manager\\manager.jar";
+        app.uploadFileToS3(managerJarPath, "manager.jar");
 
     }
 }

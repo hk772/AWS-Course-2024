@@ -28,7 +28,7 @@ class InputProcessor extends Thread{
         this.jobsDoneQUrl = jobsDoneQUrl;
         this.manager = manager;
         this.aws = new App();
-        this.url = System.getProperty("user.dir") +"\\InputProcessorsDir\\"+ this.keyName;
+        this.url = System.getProperty("user.dir") +"/InputProcessorsDir/"+ this.keyName;
 
     }
 

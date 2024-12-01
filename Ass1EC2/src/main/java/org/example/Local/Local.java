@@ -12,7 +12,6 @@ import java.util.Scanner;
 
 public class Local extends Thread {
     String id;
-    Manager manager;
     String terminate;
     String url;
     String fileKey;
@@ -23,7 +22,7 @@ public class Local extends Thread {
     String outputQUrl;
 
 
-    public Local(String url, String outPath, String terminate){
+    public Local(String url, String outPath, int loadFactor, String terminate){
         this.terminate = terminate;
         this.url = url;
         this.aws = new App();
@@ -126,6 +125,33 @@ public class Local extends Thread {
         inputThread.start();
 
 
+    }
+
+    public static void main(String[] args) {
+        // check valid args count
+        if (args.length < 3) {
+            System.err.println("Usage: java ArgumentParser <url> <outPath> <loadFactor> [terminate]");
+            System.exit(1);
+        }
+
+        // Parse required arguments
+        String url = args[0];
+        String outPath = args[1];
+        int loadFactor;
+        try {
+            loadFactor = Integer.parseInt(args[2]);
+        } catch (NumberFormatException e) {
+            System.err.println("Error: loadFactor must be an integer.");
+            System.exit(1);
+            return;
+        }
+
+        // Parse optional argument
+        String terminate = args.length > 3 ? args[3] : null;
+
+        // create Local
+        Local loc = new Local(url, outPath, loadFactor, terminate);
+        loc.start();
     }
 
 }

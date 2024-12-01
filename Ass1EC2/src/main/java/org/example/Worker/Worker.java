@@ -12,10 +12,8 @@ import java.util.concurrent.BlockingQueue;
 
 public class Worker extends Thread {
 
-//    BlockingQueue<Message> jobsQ;
-//    BlockingQueue<Message> jobsDoneQ;
     Operations operations;
-    String outAddress;// = "C:\\Users\\hagai\\Documents\\uni\\year 5\\mevuzarot\\assignments\\Ass1EC2\\src\\main\\java\\org\\example\\S3\\worker ";
+    String outAddress;
     boolean terminated = false;
     App aws;
     int workerid;
@@ -29,8 +27,8 @@ public class Worker extends Thread {
         this.operations = new Operations();
         this.aws = new App();
         this.workerid = id;
-        this.myDirPath = System.getProperty("user.dir") + "\\WorkersDir" + this.workerid;
-        Files.createDirectories(Paths.get(System.getProperty("user.dir"), "\\WorkersDir" + this.workerid));
+        this.myDirPath = System.getProperty("user.dir") + "/WorkersDir" + this.workerid;
+        Files.createDirectories(Paths.get(System.getProperty("user.dir"), "/WorkersDir" + this.workerid));
     }
 
 
@@ -41,10 +39,10 @@ public class Worker extends Thread {
         String name = keyName.split("\\.")[0];
 
         //download from s3
-        String address = System.getProperty("user.dir") + "\\WorkersDir" + this.workerid + "\\" + keyName;
+        String address = System.getProperty("user.dir") + "/WorkersDir" + this.workerid + "/" + keyName;
         this.aws.downloadFromS3(keyName, address);
 
-        String outputAddress = System.getProperty("user.dir") + "\\WorkersDir" + this.workerid + "\\";
+        String outputAddress = System.getProperty("user.dir") + "/WorkersDir" + this.workerid + "/";
         String contentStart = op + "\t" + keyName + "\t";
         String newName = name;
 
