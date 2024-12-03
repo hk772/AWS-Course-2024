@@ -34,6 +34,11 @@ public class Local extends Thread {
     }
 
     public void initManagerIfNotExists() {
+        try {
+            this.aws.initManagerIfNotExists();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
 
     }
 
@@ -128,13 +133,11 @@ public class Local extends Thread {
     }
 
     public static void main(String[] args) {
-        // check valid args count
         if (args.length < 3) {
             System.err.println("Usage: java ArgumentParser <url> <outPath> <loadFactor> [terminate]");
             System.exit(1);
         }
 
-        // Parse required arguments
         String url = args[0];
         String outPath = args[1];
         int loadFactor;
@@ -146,10 +149,8 @@ public class Local extends Thread {
             return;
         }
 
-        // Parse optional argument
         String terminate = args.length > 3 ? args[3] : null;
 
-        // create Local
         Local loc = new Local(url, outPath, loadFactor, terminate);
         loc.start();
     }

@@ -4,25 +4,34 @@ package org.example;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.ec2.Ec2Client;
+import software.amazon.awssdk.services.ec2.model.*;
+import software.amazon.awssdk.services.ec2.model.Tag;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.*;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Base64;
+import java.util.List;
 import java.util.Map;
 
 import org.example.Messages.Message;
 
 public class App {
 
-    public static String inputQ = "INPUTS";
-    public static String outputQ = "OUTPUTS";
-    public static String jobQ = "JOBS";
-    public static String jobDoneQ = "JOBS_DONE";
-    public static String BUCKET_NAME = "my-great-bucket-mevuzarot-2024";
+    public static final String inputQ = "INPUTS";
+    public static final String outputQ = "OUTPUTS";
+    public static final String jobQ = "JOBS";
+    public static final String jobDoneQ = "JOBS_DONE";
+    public static final String BUCKET_NAME = "my-great-bucket-mevuzarot-2024";
+    public static final String KEY_PAIR = "Mevuzarot2024";
 
-    public final String IMAGE_AMI = "";
+    public static final String Manager_AMI = "ami-0cafaa2298c71dc72";
+    public static final String Worker_AMI = "ami-0cafaa2298c71dc72";
+
     public software.amazon.awssdk.regions.Region region = Region.US_EAST_1;
     public software.amazon.awssdk.regions.Region region2 = Region.US_WEST_2;
     private final S3Client s3;
@@ -32,7 +41,7 @@ public class App {
     public App(){
         s3 = S3Client.builder().region(region2).build();
         sqs = SqsClient.builder().region(region2).build();
-//        ec2 = Ec2Client.builder().region(region).build();
+        ec2 = Ec2Client.builder().region(region2).build();
     }
 
     public void createS3Bucket(String bucketName){
@@ -200,6 +209,91 @@ public class App {
         SendMessageResponse sendMessageResponse = sqs.sendMessage(sendMessageRequest);
     }
 
+    public void runInstanceFromAmiWithScript(String ami, int min, int max, String script, String instanceName, String labelValue) {
+        Tag nameTag = Tag.builder()
+                .key("Name")
+                .value(instanceName)
+                .build();
+
+        Tag labelTag = Tag.builder()
+                .key("Label")
+                .value(labelValue)
+                .build();
+
+        RunInstancesRequest runInstancesRequest = RunInstancesRequest.builder()
+                .imageId(ami)
+                .instanceType(InstanceType.T2_MICRO)
+                .minCount(min)
+                .maxCount(max)
+                .keyName(App.KEY_PAIR)
+                .userData(Base64.getEncoder().encodeToString(script.getBytes()))
+                .tagSpecifications(
+                        TagSpecification.builder()
+                                .resourceType(ResourceType.INSTANCE)
+                                .tags(nameTag, labelTag)  // Assign both the name and label tags
+                                .build()
+                )
+                .build();
+
+        // Launch the instance
+        ec2.runInstances(runInstancesRequest);
+    }
+
+    public List<Instance> getAllInstances() {
+        DescribeInstancesRequest describeInstancesRequest = DescribeInstancesRequest.builder().build();
+
+        DescribeInstancesResponse describeInstancesResponse = null;
+        describeInstancesResponse = ec2.describeInstances(describeInstancesRequest);
+
+        return describeInstancesResponse.reservations().stream()
+                .flatMap(r -> r.instances().stream())
+                .toList();
+    }
+
+    public List<Instance> getAllInstancesWithLabel(String label) throws InterruptedException {
+        DescribeInstancesRequest describeInstancesRequest =
+                DescribeInstancesRequest.builder()
+                        .filters(Filter.builder()
+                                .name("tag:Label")
+                                .values(label)
+                                .build())
+                        .build();
+
+        DescribeInstancesResponse describeInstancesResponse = ec2.describeInstances(describeInstancesRequest);
+
+        return describeInstancesResponse.reservations().stream()
+                .flatMap(r -> r.instances().stream())
+                .toList();
+    }
+
+    public void initManagerIfNotExists(){
+        try {
+            List<Instance> lst = this.getAllInstancesWithLabel("Manager");
+            if (lst.size() > 0){
+                String filePath = "C:\\Users\\hagai\\.aws\\credentials";
+                String fileContent = new String(Files.readAllBytes(Paths.get(filePath)));
+
+                String script = String.format("#!/bin/bash\n" +
+                                "set -e\n" +
+                                "mkdir -p /root/.aws && \\\n" +
+                                "echo -e \"%s\" > /root/.aws/credentials && \\\n" +
+                                "aws s3 cp s3://%s/manager.jar /root/ && \\\n" +  // Download to /root/
+                                "echo \"Downloaded manager.jar\" >> /var/log/user-data.log && \\\n" +
+                                "cd /root && \\\n" +  // Change to /root/ directory where manager.jar is
+                                "if [ -f manager.jar ]; then \\\n" +
+                                "    java -jar manager.jar >> /var/log/user-data.log 2>&1; \\\n" +
+                                "else \\\n" +
+                                "    echo \"manager.jar not found\" >> /var/log/user-data.log; \\\n" +
+                                "fi\n",
+                        fileContent, App.BUCKET_NAME);
+
+                this.runInstanceFromAmiWithScript(App.Manager_AMI, 1, 1, script, "runrun", "Manager");
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
 
     public static void main(String[] args) {
         App app = new App();
@@ -208,7 +302,12 @@ public class App {
 //        app.uploadFileToS3("C:\\Users\\hagai\\Documents\\uni\\year 5\\mevuzarot\\assignments\\Ass1EC2\\src\\main\\java\\org\\example\\PDFS\\ass2.pdf", "ass2.pdf");
 //        app.uploadFileToS3("C:\\Users\\hagai\\Documents\\uni\\year 5\\mevuzarot\\assignments\\Ass1EC2\\src\\main\\java\\org\\example\\PDFS\\ass3.pdf", "ass3.pdf");
 //
-//
+//        String managerJarPath = "C:\\Users\\hagai\\Documents\\uni\\year 5\\mevuzarot\\assignments\\Jars Newest\\Manager\\manager.jar";
+//        app.uploadFileToS3(managerJarPath, "manager.jar");
+
+
+
+        //
 //        app.createQueue(App.inputQ);
 //        app.createQueue(App.outputQ);
 //        app.createQueue(App.jobQ);
@@ -222,8 +321,27 @@ public class App {
 //        }
 //        Message msg = (Message) ans;
 //        System.out.println("msg id " + msg.localID + "\nmsg content: " + msg.content);
-        String managerJarPath = "C:\\Users\\hagai\\Documents\\uni\\year 5\\mevuzarot\\assignments\\Jars Newest\\Manager\\manager.jar";
-        app.uploadFileToS3(managerJarPath, "manager.jar");
+
+
+//        String script =
+//                "aws s3 cp s3://your-bucket-name/your-jar-file.jar /home/ubuntu/manager.jar\n" +
+//                "java -jar /home/ubuntu/manager.jar\n";
+        String awsAccessKeyId = "";
+        String awsSecretAccessKey = "";
+        String awsSessionToken = "";
+//
+
+        app.runInstanceFromAmiWithScript(amiStr, 1, 1, script, "runrun", "Manager");
+
+//        List<Instance> instances = app.getAllInstances();
+//        System.out.println("number total: " + instances.size());
+//
+//        try {
+//            List<Instance> managerInstances = app.getAllInstancesWithLabel("Manager");
+//            System.out.println("number of managers: " + managerInstances.size());
+//        } catch (InterruptedException e) {
+//            System.out.println(e.getMessage());
+//        }
 
     }
 }
