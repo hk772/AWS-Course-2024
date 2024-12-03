@@ -1,3 +1,3 @@
 Manifest-Version: 1.0
-Main-Class: org.example.Manager.Manager
+Main-Class: org.example.Local.Local
 

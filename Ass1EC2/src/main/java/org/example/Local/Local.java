@@ -2,7 +2,6 @@ package org.example.Local;
 
 import org.example.App;
 import org.example.Messages.Message;
-import org.example.Manager.Manager;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
 
 import java.nio.file.Path;
@@ -84,6 +83,8 @@ public class Local extends Thread {
             this.sendMsgToManager();
         } catch (Exception e) {
             System.err.println(e.getMessage() + "\n restart");
+            // TODO: terminate manager if it has been created
+            System.exit(1);
         }
 
 

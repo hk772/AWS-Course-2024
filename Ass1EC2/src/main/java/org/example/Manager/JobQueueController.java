@@ -1,15 +1,13 @@
 package org.example.Manager;
 
 import org.example.App;
-import org.example.Messages.Message;
 import org.example.Worker.Worker;
 
-import java.io.IOException;
 import java.util.LinkedList;
 
 public class JobQueueController extends Thread {
     int workersCount = 0;
-    int MAX_WORKERS_COUNT = 10;
+    int MAX_WORKERS_COUNT = 3;
     int jobsPerWorker;
     LinkedList<Worker> workers;
     boolean allWorkersTerminated = false;
@@ -29,10 +27,10 @@ public class JobQueueController extends Thread {
     public void run() {
         while (!allWorkersTerminated) {
             if(this.workersCount == this.MAX_WORKERS_COUNT) {
-                // do nothing?
+                // TODO: sleep until termination
             } else if (this.workersCount < this.MAX_WORKERS_COUNT) {
                 int jobsQSize = this.aws.getQueueSize(this.jobsQUrl);
-                if (jobsQSize > this.workersCount * this.jobsPerWorker) {
+                while (this.workersCount < this.MAX_WORKERS_COUNT && jobsQSize > this.workersCount * this.jobsPerWorker) {
                     this.createWorker();
                 }
             }
@@ -45,21 +43,12 @@ public class JobQueueController extends Thread {
     }
 
     private void createWorker() {
-        Worker w = null;
-        try {
-            w = new Worker(this.jobsQUrl, this.jobsDoneQUrl, this.workersCount);
-            System.out.println("created worker");
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        this.aws.initWorker(String.valueOf(this.workersCount));
+        System.out.println("created worker");
         workersCount += 1;
-        w.start();
     }
 
     public void terminate() {
-        for (Worker w : workers) {
-            w.terminate();
-        }
-        allWorkersTerminated = true;
+
     }
 }

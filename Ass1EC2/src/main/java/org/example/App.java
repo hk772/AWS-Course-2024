@@ -29,8 +29,8 @@ public class App {
     public static final String BUCKET_NAME = "my-great-bucket-mevuzarot-2024";
     public static final String KEY_PAIR = "Mevuzarot2024";
 
-    public static final String Manager_AMI = "ami-0cafaa2298c71dc72";
-    public static final String Worker_AMI = "ami-0cafaa2298c71dc72";
+    public static final String Manager_AMI = "ami-09a36cd4f4f8be752";
+    public static final String Worker_AMI = "ami-0d5f07a9b7d320b33";
 
     public software.amazon.awssdk.regions.Region region = Region.US_EAST_1;
     public software.amazon.awssdk.regions.Region region2 = Region.US_WEST_2;
@@ -237,6 +237,7 @@ public class App {
 
         // Launch the instance
         ec2.runInstances(runInstancesRequest);
+        System.out.println("instance inited");
     }
 
     public List<Instance> getAllInstances() {
@@ -254,9 +255,13 @@ public class App {
         DescribeInstancesRequest describeInstancesRequest =
                 DescribeInstancesRequest.builder()
                         .filters(Filter.builder()
-                                .name("tag:Label")
-                                .values(label)
-                                .build())
+                                    .name("tag:Label")
+                                    .values(label)
+                                    .build(),
+                                Filter.builder()
+                                        .name("instance-state-name")
+                                        .values("pending", "running")
+                                        .build())
                         .build();
 
         DescribeInstancesResponse describeInstancesResponse = ec2.describeInstances(describeInstancesRequest);
@@ -268,70 +273,91 @@ public class App {
 
     public void initManagerIfNotExists(){
         try {
+            System.out.println("checking if ahve manager");
             List<Instance> lst = this.getAllInstancesWithLabel("Manager");
-            if (lst.size() > 0){
+            System.out.println("number of managers: " + lst.size());
+            if (lst.size() == 0){
                 String filePath = "C:\\Users\\hagai\\.aws\\credentials";
-                String fileContent = new String(Files.readAllBytes(Paths.get(filePath)));
-
-                String script = String.format("#!/bin/bash\n" +
-                                "set -e\n" +
-                                "mkdir -p /root/.aws && \\\n" +
-                                "echo -e \"%s\" > /root/.aws/credentials && \\\n" +
-                                "aws s3 cp s3://%s/manager.jar /root/ && \\\n" +  // Download to /root/
-                                "echo \"Downloaded manager.jar\" >> /var/log/user-data.log && \\\n" +
-                                "cd /root && \\\n" +  // Change to /root/ directory where manager.jar is
-                                "if [ -f manager.jar ]; then \\\n" +
-                                "    java -jar manager.jar >> /var/log/user-data.log 2>&1; \\\n" +
-                                "else \\\n" +
-                                "    echo \"manager.jar not found\" >> /var/log/user-data.log; \\\n" +
-                                "fi\n",
-                        fileContent, App.BUCKET_NAME);
-
-                this.runInstanceFromAmiWithScript(App.Manager_AMI, 1, 1, script, "runrun", "Manager");
+                initSpecificEC2(Manager_AMI, filePath, "Manager", "manager", "Manager");
+                System.out.println("manager inited");
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
+    public void initWorker(String name){
+        try {
+            String filePath = "/root/.aws/credentials";
+            initSpecificEC2(Worker_AMI, filePath, name, "worker", "Worker");
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void initSpecificEC2(String AMI, String filePath, String name, String jarName, String label) throws IOException {
+        String fileContent = new String(Files.readAllBytes(Paths.get(filePath)));
+
+//        String script = String.format("#!/bin/bash\n" +
+//                        "set -e\n" +
+//                        "mkdir -p /root/.aws && \\\n" +
+//                        "echo -e \"%s\" > /root/.aws/credentials && \\\n" +
+//                        "cd /root && \\\n" +  // Change to /root/ directory
+//                        "if [ -f %s.jar ]; then \\\n" +
+//                        "    java -jar %s.jar >> /var/log/user-data.log 2>&1; \\\n" +
+//                        "else \\\n" +
+//                        "    echo \"%s.jar not found\" >> /var/log/user-data.log; \\\n" +
+//                        "fi\n",
+//                fileContent, jarName, jarName, jarName);
+
+        // with doenload
+        String script = String.format("#!/bin/bash\n" +
+                        "set -e\n" +
+                        "mkdir -p /root/.aws && \\\n" +
+                        "echo -e \"%s\" > /root/.aws/credentials && \\\n" +
+                        "aws s3 cp s3://%s/%s.jar /root/ && \\\n" +  // Download to /root/
+                        "echo \"Downloaded %s.jar\" >> /var/log/user-data.log && \\\n" +
+                        "cd /root && \\\n" +  // Change to /root/ directory where manager.jar is
+                        "if [ -f %s.jar ]; then \\\n" +
+                        "    java -jar %s.jar >> /var/log/user-data.log 2>&1; \\\n" +
+                        "else \\\n" +
+                        "    echo \"%s.jar not found\" >> /var/log/user-data.log; \\\n" +
+                        "fi\n",
+                fileContent, App.BUCKET_NAME, jarName, jarName, jarName, jarName, jarName);
+
+        this.runInstanceFromAmiWithScript(AMI, 1, 1, script, name, label);
+    }
+
+    public void initForFirstRun(){
+//        this.createS3Bucket(App.BUCKET_NAME);
+
+        this.createQueue(App.inputQ);
+        this.createQueue(App.outputQ);
+        this.createQueue(App.jobQ);
+        this.createQueue(App.jobDoneQ);
+    }
 
     public static void main(String[] args) {
         App app = new App();
-//        app.createS3Bucket(App.BUCKET_NAME);
+        app.initForFirstRun();
+
+        // upload testing files to the bucket
 //        app.uploadFileToS3("C:\\Users\\hagai\\Documents\\uni\\year 5\\mevuzarot\\assignments\\Ass1EC2\\src\\main\\java\\org\\example\\PDFS\\ass1.pdf", "ass1.pdf");
 //        app.uploadFileToS3("C:\\Users\\hagai\\Documents\\uni\\year 5\\mevuzarot\\assignments\\Ass1EC2\\src\\main\\java\\org\\example\\PDFS\\ass2.pdf", "ass2.pdf");
 //        app.uploadFileToS3("C:\\Users\\hagai\\Documents\\uni\\year 5\\mevuzarot\\assignments\\Ass1EC2\\src\\main\\java\\org\\example\\PDFS\\ass3.pdf", "ass3.pdf");
+
+        // upload manager and worker jars:
+//        String managerJarPath = "C:\\Users\\hagai\\Documents\\uni\\year 5\\mevuzarot\\assignments\\Jars Newest\\Manager\\manager.jar";
+//        String workerJarPath = "C:\\Users\\hagai\\Documents\\uni\\year 5\\mevuzarot\\assignments\\Jars Newest\\Worker\\worker.jar";
 //
+//        app.uploadFileToS3(managerJarPath, "manager.jar");
+//        app.uploadFileToS3(workerJarPath, "worker.jar");
+
+
+//        app.initManagerIfNotExists();
+
 //        String managerJarPath = "C:\\Users\\hagai\\Documents\\uni\\year 5\\mevuzarot\\assignments\\Jars Newest\\Manager\\manager.jar";
 //        app.uploadFileToS3(managerJarPath, "manager.jar");
-
-
-
-        //
-//        app.createQueue(App.inputQ);
-//        app.createQueue(App.outputQ);
-//        app.createQueue(App.jobQ);
-//        app.createQueue(App.jobDoneQ);
-
-//        String inputsQUrl = app.getQueueUrl(App.inputQ);
-//        Object ans = null;
-//        while (ans == null) {
-//            ans = app.popFromSQSAutoDel(inputsQUrl);
-//            System.out.println("try");
-//        }
-//        Message msg = (Message) ans;
-//        System.out.println("msg id " + msg.localID + "\nmsg content: " + msg.content);
-
-
-//        String script =
-//                "aws s3 cp s3://your-bucket-name/your-jar-file.jar /home/ubuntu/manager.jar\n" +
-//                "java -jar /home/ubuntu/manager.jar\n";
-        String awsAccessKeyId = "";
-        String awsSecretAccessKey = "";
-        String awsSessionToken = "";
-//
-
-        app.runInstanceFromAmiWithScript(amiStr, 1, 1, script, "runrun", "Manager");
 
 //        List<Instance> instances = app.getAllInstances();
 //        System.out.println("number total: " + instances.size());

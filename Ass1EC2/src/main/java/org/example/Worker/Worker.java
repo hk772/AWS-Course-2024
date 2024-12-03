@@ -2,13 +2,12 @@ package org.example.Worker;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import org.example.App;
+import org.example.Manager.Manager;
 import org.example.Messages.Message;
 
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.concurrent.BlockingQueue;
 
 public class Worker extends Thread {
 
@@ -16,19 +15,20 @@ public class Worker extends Thread {
     String outAddress;
     boolean terminated = false;
     App aws;
-    int workerid;
     String myDirPath;
     String jobsQUrl;
     String jobsDoneQUrl;
 
-    public Worker(String jobsQUrl, String jobsDoneQUrl, int id) throws IOException {
+    public Worker() throws IOException {
         this.jobsQUrl = jobsQUrl;
         this.jobsDoneQUrl = jobsDoneQUrl;
         this.operations = new Operations();
         this.aws = new App();
-        this.workerid = id;
-        this.myDirPath = System.getProperty("user.dir") + "/WorkersDir" + this.workerid;
-        Files.createDirectories(Paths.get(System.getProperty("user.dir"), "/WorkersDir" + this.workerid));
+        this.myDirPath = System.getProperty("user.dir") + "/WorkersDir";
+        Files.createDirectories(Paths.get(System.getProperty("user.dir"), "/WorkersDir"));
+
+        this.jobsQUrl = this.aws.getQueueUrl(App.jobQ);
+        this.jobsDoneQUrl = this.aws.getQueueUrl(App.jobDoneQ);
     }
 
 
@@ -39,10 +39,10 @@ public class Worker extends Thread {
         String name = keyName.split("\\.")[0];
 
         //download from s3
-        String address = System.getProperty("user.dir") + "/WorkersDir" + this.workerid + "/" + keyName;
+        String address = System.getProperty("user.dir") + "/WorkersDir" + "/" + keyName;
         this.aws.downloadFromS3(keyName, address);
 
-        String outputAddress = System.getProperty("user.dir") + "/WorkersDir" + this.workerid + "/";
+        String outputAddress = System.getProperty("user.dir") + "/WorkersDir" + "/";
         String contentStart = op + "\t" + keyName + "\t";
         String newName = name;
 
@@ -88,9 +88,7 @@ public class Worker extends Thread {
                 } else{
                     Thread.sleep(100);
                 }
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            } catch (JsonProcessingException e) {
+            } catch (InterruptedException | JsonProcessingException e) {
                 throw new RuntimeException(e);
             }
         }
@@ -98,5 +96,15 @@ public class Worker extends Thread {
 
     public void terminate(){
         this.terminated = true;
+    }
+
+
+    public static void main(String[] args) {
+        try{
+            new Worker().start();
+        } catch (Exception e){
+            System.out.println(e.getMessage());
+            System.exit(1);
+        }
     }
 }
