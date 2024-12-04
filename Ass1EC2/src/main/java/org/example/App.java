@@ -2,6 +2,7 @@ package org.example;
 
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import software.amazon.awssdk.core.pagination.sync.SdkIterable;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.*;
@@ -18,9 +19,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.Base64;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import org.example.Messages.Message;
 
@@ -34,8 +33,8 @@ public class App {
     public static final String BUCKET_NAME = "my-great-bucket-mevuzarot-2024";
     public static final String KEY_PAIR = "Mevuzarot2024";
 
-    public static final String Manager_AMI = "ami-09a36cd4f4f8be752";
-    public static final String Worker_AMI = "ami-0d5f07a9b7d320b33";
+    public static final String Manager_AMI = "ami-01ad19b79d87a8ee1";
+    public static final String Worker_AMI = "ami-02f9e7256ef453d34";
 
     public software.amazon.awssdk.regions.Region region = Region.US_EAST_1;
     public software.amazon.awssdk.regions.Region region2 = Region.US_WEST_2;
@@ -64,7 +63,6 @@ public class App {
                     .build());
             System.out.println("Bucket created: " + bucketName);
         } catch (Exception e) {
-            // TODO : handle cant create bucket exception
             System.out.println(e.getMessage());
         }
     }
@@ -73,6 +71,20 @@ public class App {
         try {
             PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                     .bucket(BUCKET_NAME)
+                    .key(keyName)
+                    .build();
+
+            this.s3.putObject(putObjectRequest, Paths.get(filePath));
+            System.out.println("File uploaded successfully: " + keyName);
+        } catch (S3Exception e) {
+            System.err.println(e.awsErrorDetails().errorMessage());
+        }
+    }
+
+    public void uploadFileToS3DiffernetBucket(String filePath, String keyName, String bucketName) {
+        try {
+            PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+                    .bucket(bucketName)
                     .key(keyName)
                     .build();
 
@@ -101,6 +113,20 @@ public class App {
     public String createQueue(String queueName) {
         CreateQueueRequest request = CreateQueueRequest.builder()
                 .queueName(queueName)
+                .build();
+        CreateQueueResponse create_result = null;
+        create_result = sqs.createQueue(request);
+
+        assert create_result != null;
+        String queueUrl = create_result.queueUrl();
+        System.out.println("Created queue '" + queueName + "', queue URL: " + queueUrl);
+        return queueUrl;
+    }
+
+    public String createQueueWithCustomVisibilityTimout(String queueName, int visibilityTimeout) {
+        CreateQueueRequest request = CreateQueueRequest.builder()
+                .queueName(queueName)
+                .attributes(Map.of(QueueAttributeName.VISIBILITY_TIMEOUT, String.valueOf(visibilityTimeout)))
                 .build();
         CreateQueueResponse create_result = null;
         create_result = sqs.createQueue(request);
@@ -258,6 +284,22 @@ public class App {
                 .toList();
     }
 
+    public List<Instance> getAllInstancesWithLabelAllStates(String label) throws InterruptedException {
+        DescribeInstancesRequest describeInstancesRequest =
+                DescribeInstancesRequest.builder()
+                        .filters(Filter.builder()
+                                        .name("tag:Label")
+                                        .values(label)
+                                        .build())
+                        .build();
+
+        DescribeInstancesResponse describeInstancesResponse = ec2.describeInstances(describeInstancesRequest);
+
+        return describeInstancesResponse.reservations().stream()
+                .flatMap(r -> r.instances().stream())
+                .toList();
+    }
+
     public List<Instance> getAllInstancesWithLabel(String label) throws InterruptedException {
         DescribeInstancesRequest describeInstancesRequest =
                 DescribeInstancesRequest.builder()
@@ -278,14 +320,20 @@ public class App {
                 .toList();
     }
 
-    public void initManagerIfNotExists(){
+    public void initManagerIfNotExists(int loadFactor){
         try {
-            System.out.println("checking if ahve manager");
             List<Instance> lst = this.getAllInstancesWithLabel("Manager");
             System.out.println("number of managers: " + lst.size());
+
             if (lst.size() == 0){
+                try {
+                    this.initForFirstRun();
+                } catch (Exception e) {
+                    System.out.println("Q's exist");
+                }
+
                 String filePath = "C:\\Users\\hagai\\.aws\\credentials";
-                initSpecificEC2(Manager_AMI, filePath, "Manager", "manager", "Manager", 1);
+                initSpecificEC2(Manager_AMI, filePath, "Manager", "manager", "Manager", 1, String.valueOf(loadFactor));
                 System.out.println("manager inited");
             }
         } catch (Exception e) {
@@ -296,7 +344,7 @@ public class App {
     public void initWorker(String name){
         try {
             String filePath = "/root/.aws/credentials";
-            initSpecificEC2(Worker_AMI, filePath, name, "worker", "Worker", 1);
+            initSpecificEC2(Worker_AMI, filePath, name, "worker", "Worker", 1, "");
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -305,53 +353,53 @@ public class App {
     public List<Instance> initWorkers(String name, int max){
         try {
             String filePath = "/root/.aws/credentials";
-            return initSpecificEC2(Worker_AMI, filePath, name, "worker", "Worker", max);
+            return initSpecificEC2(Worker_AMI, filePath, name, "worker", "Worker", max, "");
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
-    private List<Instance> initSpecificEC2(String AMI, String filePath, String name, String jarName, String label, int max) throws IOException {
+    private List<Instance> initSpecificEC2(String AMI, String filePath, String name, String jarName, String label, int max, String jarArgs) throws IOException {
         String fileContent = new String(Files.readAllBytes(Paths.get(filePath)));
 
+        String script = String.format("#!/bin/bash\n" +
+                        "set -e\n" +
+                        "echo -e \"%s\" > /root/.aws/credentials && \\\n" +
+                        "cd /root && \\\n" +
+                        "if [ -f %s.jar ]; then \\\n" +
+                        "    java -jar %s.jar %s >> /var/log/user-data.log 2>&1; \\\n" +
+                        "else \\\n" +
+                        "    echo \"%s.jar not found\" >> /var/log/user-data.log; \\\n" +
+                        "fi\n",
+                fileContent, jarName, jarName, jarArgs, jarName);
+
+        // with doenload
 //        String script = String.format("#!/bin/bash\n" +
 //                        "set -e\n" +
 //                        "mkdir -p /root/.aws && \\\n" +
 //                        "echo -e \"%s\" > /root/.aws/credentials && \\\n" +
-//                        "cd /root && \\\n" +  // Change to /root/ directory
+//                        "aws s3 cp s3://%s/%s.jar /root/ && \\\n" +  // Download to /root/
+//                        "echo \"Downloaded %s.jar\" >> /var/log/user-data.log && \\\n" +
+//                        "cd /root && \\\n" +  // Change to /root/ directory where manager.jar is
 //                        "if [ -f %s.jar ]; then \\\n" +
-//                        "    java -jar %s.jar >> /var/log/user-data.log 2>&1; \\\n" +
+//                        "    java -jar %s.jar %s >> /var/log/user-data.log 2>&1; \\\n" + // Add arguments here
 //                        "else \\\n" +
 //                        "    echo \"%s.jar not found\" >> /var/log/user-data.log; \\\n" +
 //                        "fi\n",
-//                fileContent, jarName, jarName, jarName);
-
-        // with doenload
-        String script = String.format("#!/bin/bash\n" +
-                        "set -e\n" +
-                        "mkdir -p /root/.aws && \\\n" +
-                        "echo -e \"%s\" > /root/.aws/credentials && \\\n" +
-                        "aws s3 cp s3://%s/%s.jar /root/ && \\\n" +  // Download to /root/
-                        "echo \"Downloaded %s.jar\" >> /var/log/user-data.log && \\\n" +
-                        "cd /root && \\\n" +  // Change to /root/ directory where manager.jar is
-                        "if [ -f %s.jar ]; then \\\n" +
-                        "    java -jar %s.jar >> /var/log/user-data.log 2>&1; \\\n" +
-                        "else \\\n" +
-                        "    echo \"%s.jar not found\" >> /var/log/user-data.log; \\\n" +
-                        "fi\n",
-                fileContent, App.BUCKET_NAME, jarName, jarName, jarName, jarName, jarName);
+//                fileContent, "pdfs-bucket-mevuzarot-2024", jarName, jarName, jarName, jarName, jarArgs, jarName);
 
         return this.runInstanceFromAmiWithScript(AMI, 1, max, script, name, label);
     }
 
     public void initForFirstRun(){
+        System.out.println("initForFirstRun bucket and queues");
         this.createS3Bucket(App.BUCKET_NAME);
 
         this.createQueue(App.inputQ);
-        this.createQueue(App.outputQ);
+        this.createQueueWithCustomVisibilityTimout(App.outputQ, 0);
         this.createQueue(App.jobQ);
         this.createQueue(App.jobDoneQ);
-        this.createQueue(App.terminationQ);
+        this.createQueueWithCustomVisibilityTimout(App.terminationQ, 0);
     }
 
 
@@ -399,37 +447,101 @@ public class App {
         this.terminateInstance(instanceId);
     }
 
+    public void deleteFileFromBucket(String fileName) {
+        try {
+            DeleteObjectRequest deleteObjectRequest = DeleteObjectRequest.builder()
+                    .bucket(App.BUCKET_NAME)
+                    .key(fileName)
+                    .build();
+            s3.deleteObject(deleteObjectRequest);
+
+            System.out.println("File deleted successfully: " + fileName);
+        } catch (S3Exception e) {
+            e.printStackTrace();
+            System.out.println("Error occurred while deleting the file" + fileName);
+        }
+    }
+
+    public void emptyBycket(){
+        ListObjectsRequest listRequest = ListObjectsRequest.builder()
+                .bucket(App.BUCKET_NAME).build();
+
+        ListObjectsResponse listResponse = s3.listObjects(listRequest);
+        List<S3Object> listObjects = listResponse.contents();
+
+        List<ObjectIdentifier> objectsToDelete = new ArrayList<ObjectIdentifier>();
+
+        for (S3Object s3Object : listObjects) {
+            objectsToDelete.add(ObjectIdentifier.builder().key(s3Object.key()).build());
+        }
+
+        DeleteObjectsRequest deleteObjectsRequest = DeleteObjectsRequest.builder()
+                .bucket(App.BUCKET_NAME)
+                .delete(Delete.builder().objects(objectsToDelete).build())
+                .build();
+
+        DeleteObjectsResponse deleteObjectsResponse = s3.deleteObjects(deleteObjectsRequest);
+    }
+
+    public void deleteBucket(){
+        this.emptyBycket();
+
+        DeleteBucketRequest request = DeleteBucketRequest.builder().bucket(App.BUCKET_NAME).build();
+        s3.deleteBucket(request);
+        System.out.println("Bucket deleted.");
+    }
+
+    public void deleteSQS(String name){
+        String queueUrl = this.getQueueUrl(name);
+
+        try {
+            sqs.deleteQueue(DeleteQueueRequest.builder()
+                    .queueUrl(queueUrl)
+                    .build());
+
+            System.out.println("Queue deleted successfully: " + name);
+        } catch (QueueDoesNotExistException e) {
+            System.out.println("Queue does not exist: " + queueUrl);
+        } catch (SqsException e) {
+            e.printStackTrace();
+            System.out.println("Error occurred while deleting the queue");
+        }
+    }
+
+    public void verifyAllEC2sTerminated(){
+        List<Instance> instances = this.getAllInstances();
+        for (Instance instance : instances){
+            if (!instance.state().nameAsString().equals("terminated")) {
+                this.terminateInstance(instance.instanceId());
+            }
+        }
+    }
+
+    public void deleteQs(){
+        this.deleteSQS(App.inputQ);
+        this.deleteSQS(App.outputQ);
+        this.deleteSQS(App.jobDoneQ);
+        this.deleteSQS(App.jobQ);
+        this.deleteSQS(App.terminationQ);
+    }
+
+    public void deleteAllResources(){
+        this.deleteBucket();
+        this.deleteQs();
+        this.verifyAllEC2sTerminated();
+    }
+
     public static void main(String[] args) {
         App app = new App();
-        app.initForFirstRun();
+        String pdfBucket = "pdfs-bucket-mevuzarot-2024";
+        app.createS3Bucket(pdfBucket);
+//        app.initForFirstRun();
 
 //         upload testing files to the bucket
-        app.uploadFileToS3("C:\\Users\\hagai\\Documents\\uni\\year 5\\mevuzarot\\assignments\\Ass1EC2\\src\\main\\java\\org\\example\\PDFS\\ass1.pdf", "ass1.pdf");
-        app.uploadFileToS3("C:\\Users\\hagai\\Documents\\uni\\year 5\\mevuzarot\\assignments\\Ass1EC2\\src\\main\\java\\org\\example\\PDFS\\ass2.pdf", "ass2.pdf");
-        app.uploadFileToS3("C:\\Users\\hagai\\Documents\\uni\\year 5\\mevuzarot\\assignments\\Ass1EC2\\src\\main\\java\\org\\example\\PDFS\\ass3.pdf", "ass3.pdf");
+//        app.uploadFileToS3DiffernetBucket("C:\\Users\\hagai\\Documents\\uni\\year 5\\mevuzarot\\assignments\\Ass1EC2\\src\\main\\java\\org\\example\\PDFS\\ass1.pdf", "ass1.pdf", pdfBucket);
+//        app.uploadFileToS3DiffernetBucket("C:\\Users\\hagai\\Documents\\uni\\year 5\\mevuzarot\\assignments\\Ass1EC2\\src\\main\\java\\org\\example\\PDFS\\ass2.pdf", "ass2.pdf", pdfBucket);
+//        app.uploadFileToS3DiffernetBucket("C:\\Users\\hagai\\Documents\\uni\\year 5\\mevuzarot\\assignments\\Ass1EC2\\src\\main\\java\\org\\example\\PDFS\\ass3.pdf", "ass3.pdf", pdfBucket);
 
-        // upload manager and worker jars:
-//        String managerJarPath = "C:\\Users\\hagai\\Documents\\uni\\year 5\\mevuzarot\\assignments\\Jars Newest\\Manager\\manager.jar";
-//        String workerJarPath = "C:\\Users\\hagai\\Documents\\uni\\year 5\\mevuzarot\\assignments\\Jars Newest\\Worker\\worker.jar";
-//
-//        app.uploadFileToS3(managerJarPath, "manager.jar");
-//        app.uploadFileToS3(workerJarPath, "worker.jar");
-
-
-//        app.initManagerIfNotExists();
-
-//        String managerJarPath = "C:\\Users\\hagai\\Documents\\uni\\year 5\\mevuzarot\\assignments\\Jars Newest\\Manager\\manager.jar";
-//        app.uploadFileToS3(managerJarPath, "manager.jar");
-
-//        List<Instance> instances = app.getAllInstances();
-//        System.out.println("number total: " + instances.size());
-//
-//        try {
-//            List<Instance> managerInstances = app.getAllInstancesWithLabel("Manager");
-//            System.out.println("number of managers: " + managerInstances.size());
-//        } catch (InterruptedException e) {
-//            System.out.println(e.getMessage());
-//        }
 
     }
 }

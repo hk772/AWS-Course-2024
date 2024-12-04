@@ -5,6 +5,8 @@ import org.example.App;
 import org.example.Messages.Message;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Scanner;
@@ -22,6 +24,8 @@ public class Local extends Thread {
     String outputQUrl = null;
     String terminateQ = null;
 
+    int loadFactor;
+
 
     public Local(String url, String outPath, int loadFactor, String terminate){
         this.terminate = terminate;
@@ -31,12 +35,13 @@ public class Local extends Thread {
 //        String macAddress = getMacAddress();
         long timestamp = System.currentTimeMillis();
         this.id = /*macAddress +*/ "-" + timestamp + "-";
+        this.loadFactor = loadFactor;
 
     }
 
     public void initManagerIfNotExists() {
         try {
-            this.aws.initManagerIfNotExists();
+            this.aws.initManagerIfNotExists(this.loadFactor);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -45,7 +50,6 @@ public class Local extends Thread {
 
     public void uploadInputFile() {
         System.out.println("Uploading input file...");
-        Path source = Paths.get(this.url);
         this.fileKey = "LocalId" + this.id + "input.txt";
 
         try {
@@ -58,7 +62,6 @@ public class Local extends Thread {
 
     public void sendMsgToManager() {
         System.out.println("Sending message to manager ...");
-        // TODO: try until success?
         Message msg = new Message(this.id, this.fileKey);
         try{
             this.aws.pushToSQS(this.inputQUrl, msg);
@@ -69,22 +72,36 @@ public class Local extends Thread {
     }
 
     public void downloadOutputFile(String outFileKey) {
-        this.aws.downloadFromS3(outFileKey, this.outPath + outFileKey);
+        this.aws.downloadFromS3(outFileKey, this.outPath);
+        // the downloaded file is .txt need to make it html document
+        Path txtFilePath = Paths.get(this.outPath); // Path to the downloaded .txt file
+        Path htmlFilePath = Paths.get(this.outPath.replace(".txt", ".html")); // Target .html file path
+
+        try {
+            String content = Files.readString(txtFilePath);
+            String htmlContent = "<!DOCTYPE html>\n<html>\n<head>\n<title>Document</title>\n</head>\n<body>\n<pre>"
+                    + content +
+                    "</pre>\n</body>\n</html>";
+            Files.writeString(htmlFilePath, htmlContent);
+        } catch (IOException e) {
+            System.out.println(e.getMessage());
+        }
     }
 
     public void run() {
         System.out.println("Local is running, id: " + this.id);
         try {
+            this.initManagerIfNotExists();
+
             this.inputQUrl = this.aws.getQueueUrl(App.inputQ);
             this.outputQUrl = this.aws.getQueueUrl(App.outputQ);
             this.terminateQ = this.aws.getQueueUrl(App.terminationQ);
 
-            this.initManagerIfNotExists();
             this.uploadInputFile();
             this.sendMsgToManager();
         } catch (Exception e) {
             System.err.println(e.getMessage() + "\n restart");
-            // TODO: add appropriate recovery/termination for each of the lines above
+//            this.aws.deleteAllResources();
             System.exit(1);
         }
 

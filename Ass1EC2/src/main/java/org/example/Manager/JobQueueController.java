@@ -8,7 +8,7 @@ import java.util.List;
 
 public class JobQueueController extends Thread {
     int workersCount = 0;
-    int MAX_WORKERS_COUNT = 6;
+    int MAX_WORKERS_COUNT = 10;
     int jobsPerWorker;
     boolean allWorkersTerminated = false;
     App aws;
@@ -17,10 +17,9 @@ public class JobQueueController extends Thread {
     List<String> workers;
     boolean terminated = false;
 
-    public JobQueueController(String jobsQUrl, String jobsDoneQUrl, int maxWorkersCount, int jobsPerWorker) {
+    public JobQueueController(String jobsQUrl, String jobsDoneQUrl, int jobsPerWorker) {
         this.jobsQUrl = jobsQUrl;
         this.jobsDoneQUrl = jobsDoneQUrl;
-//        this.MAX_WORKERS_COUNT = maxWorkersCount;
         this.jobsPerWorker = jobsPerWorker;
         workers = new LinkedList<>();
         this.aws = new App();
@@ -30,6 +29,11 @@ public class JobQueueController extends Thread {
         while (!this.terminated) {
             if(this.workersCount == this.MAX_WORKERS_COUNT) {
                 // TODO: sleep someone calls my terminate method
+                try {
+                    sleep(1000);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
             } else if (this.workersCount < this.MAX_WORKERS_COUNT) {
                 int jobsQSize = this.aws.getQueueSize(this.jobsQUrl);
                 int workersNeededTotal = (int)(jobsQSize / this.jobsPerWorker);

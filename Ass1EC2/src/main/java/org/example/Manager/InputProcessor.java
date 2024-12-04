@@ -34,27 +34,23 @@ class InputProcessor extends Thread{
 
 
     public void run() {
-        // download the input from the S3
         this.aws.downloadFromS3(this.keyName, this.url);
-        // create sqs msg for ach url in the input
-        // if the msg is a termination msg -> notify the manager and start termination process
+
         AtomicInteger jobsCount = new AtomicInteger();
         try (Stream<String> lines = Files.lines(Path.of(this.url))) {
             lines.forEach(line -> {
                 if (this.terminate)
                     return;
                 try {
-                    // TODO: handlke exceptions better
                     this.aws.pushToSQS(this.jobsQUrl, new Message(this.localID, line));
                     jobsCount.addAndGet(1);
                 } catch (JsonProcessingException e) {
                     throw new RuntimeException(e);
                 }
             });
-            // TODO : better handlke exceptions
+
             Files.delete(Paths.get(this.url));
             this.aws.pushToSQS(this.jobsDoneQUrl, new Message(this.localID, "UPLOAD DONE-" + jobsCount.get()));
-//            this.jobsDoneQ.put();
         } catch (Exception e) {
             System.err.println("Error reading file: " + e.getMessage());
         }

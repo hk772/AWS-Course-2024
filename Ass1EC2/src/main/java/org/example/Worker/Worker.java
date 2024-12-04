@@ -2,12 +2,16 @@ package org.example.Worker;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import org.example.App;
-import org.example.Manager.Manager;
 import org.example.Messages.Message;
+import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 
 public class Worker extends Thread {
 
@@ -30,22 +34,31 @@ public class Worker extends Thread {
         this.terminateQUrl = this.aws.getQueueUrl(App.terminationQ);
     }
 
+    public void downloadPDF(String pdfAddress, String localAddress) {
+        try {
+            InputStream in = new URL(pdfAddress).openStream();
+            Files.copy(in, Paths.get(localAddress), StandardCopyOption.REPLACE_EXISTING);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     private Message execute(String job, String id){
         String[] parts = job.split("\t");
         String op = parts[0];
-        String keyName = parts[1];
-        String name = keyName.split("\\.")[0];
-
-        //download from s3
-        String address = System.getProperty("user.dir") + "/WorkersDir" + "/" + keyName;
-        this.aws.downloadFromS3(keyName, address);
+        String pdfUrl = parts[1];
+        Path p = Paths.get(pdfUrl);
+        String name = p.getFileName().toString();
 
         String outputAddress = System.getProperty("user.dir") + "/WorkersDir" + "/";
-        String contentStart = op + "\t" + keyName + "\t";
+        String contentStart = op + "\t" + pdfUrl + "\t";
         String newName = name;
 
         try{
+            //download from web
+            String address = System.getProperty("user.dir") + "/WorkersDir" + "/" + name;
+            this.downloadPDF(pdfUrl, address);
+
             switch (op) {
                 case "ToImage":
                     newName += "ToImage.jpg";
@@ -80,10 +93,13 @@ public class Worker extends Thread {
         while (!this.terminated) {
             try {
                 // TODO handle exception better!!
-                Message msg = this.aws.popFromSQSAutoDel(this.jobsQUrl);
+                Object[] obj = aws.popFromSQS(this.jobsQUrl);
+                Message msg = (Message) obj[0];
                 if (msg != null) {
                     Message msgDone = this.execute(msg.content, msg.localID);
                     this.aws.pushToSQS(this.jobsDoneQUrl, msgDone);
+                    // this is the recovery from dead worker protocol, only if the job done has been posted then we can safely delete the job from jobsQ
+                    this.aws.deleteMsgFromSqs((DeleteMessageRequest) obj[1]);
                 } else{
                     Thread.sleep(100);
                 }

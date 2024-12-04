@@ -3,6 +3,7 @@ package org.example.Manager;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import org.example.App;
 import org.example.Messages.Message;
+import software.amazon.awssdk.services.ec2.model.Instance;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -10,6 +11,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class Manager {
@@ -26,6 +28,7 @@ public class Manager {
     App aws;
     String myDirPath;
     boolean allWorkersFinished;
+    int loadFactor;
 
     String jobsQUrl;
     String inputsQUrl;
@@ -35,7 +38,8 @@ public class Manager {
 
 
 
-    public Manager() throws IOException {
+    public Manager(int loadFactor) throws IOException {
+        this.loadFactor = loadFactor;
         this.aws = new App();
         this.initQs();
 
@@ -47,7 +51,7 @@ public class Manager {
         this.finishedUploading = new HashMap<>();
 
         this.inputProcs = new HashMap<>();
-        jobQController = new JobQueueController(this.jobsQUrl, this.jobsDoneQUrl, 3, 1);
+        jobQController = new JobQueueController(this.jobsQUrl, this.jobsDoneQUrl, loadFactor);
 
         jobQController.start();
         this.listenForInputs();
@@ -64,24 +68,11 @@ public class Manager {
 
     private void startOutputFileForNewLocal(String path) {
         File file = new File(path);
-        try (FileWriter myWriter = new FileWriter(path)) {
-            String html = """
-            <!DOCTYPE html>
-            <html>
-            <head>
-            <title>PDF Page 1</title>
-            </head>
-            <body>
-            """;
-            myWriter.write(html);
-        } catch (IOException e) {
-            System.err.println("Error creating output file: " + e.getMessage());
-        }
     }
 
     public void signIn(String localId) {
         synchronized (this.signInLock) {
-            this.startOutputFileForNewLocal(this.myDirPath + "/" + localId + "out.html");
+            this.startOutputFileForNewLocal(this.myDirPath + "/" + localId + "out.txt");
             this.jobsCount.put(localId, new Integer[]{0,0});    // for local 2, 12/14 jobs done
             this.finishedUploading.put(localId, false);
         }
@@ -123,14 +114,8 @@ public class Manager {
 
         if (done == all && this.finishedUploading.get(id)) {
             this.jobsCount.remove(id);
-            String name = id + "out.html";
+            String name = id + "out.txt";
             String curPath = this.myDirPath + "/" + name;
-
-            try (FileWriter myWriter = new FileWriter(curPath, true)) {
-                myWriter.write("</body>\n</html>");
-            } catch (IOException e) {
-                System.err.println("Error handling job done: " + e.getMessage());
-            }
 
             this.aws.uploadFileToS3(curPath, name);
             try {
@@ -162,7 +147,7 @@ public class Manager {
 
 
     private void handleJobDoneMsg(Message message) {
-        String name = message.localID + "out.html";
+        String name = message.localID + "out.txt";
         String curPath = this.myDirPath + "/" + name;
 
         synchronized (jobsCountLock) {
@@ -174,7 +159,6 @@ public class Manager {
             }
 
             this.checkIfFinishedJobsForLocal(message.localID);
-
             if (this.jobsCount.isEmpty()) {
                 System.out.println("Finished all jobs");
             }
@@ -185,8 +169,10 @@ public class Manager {
 
     private synchronized void checkIfTerminateMyself() {
         synchronized (this.deleteMyselfLock) {
-            if (this.terminated && this.allWorkersFinished && this.aws.getQueueSize(this.jobsDoneQUrl) == 0)
+            if (this.terminated && this.allWorkersFinished && this.aws.getQueueSize(this.jobsDoneQUrl) == 0){
                 this.aws.terminateMyself();
+                this.aws.deleteQs();
+            }
         }
     }
 
@@ -230,27 +216,35 @@ public class Manager {
 
     public void WaitForWorkersToFinishCurJob() {
         Thread checkAllWorkersTerminated  = new Thread(() -> {
-            System.out.println("w8ing foe all workers to finish current job :)");
+            System.out.println("w8ing for all workers to finish current job :)");
 
             while (true) {
                 try {
-                    int workersNum = this.aws.getAllInstancesWithLabel("Worker").size();
-                    if (workersNum == 0) {
-                        break;
+                    List<Instance> instances = this.aws.getAllInstancesWithLabel("Worker");
+                    int workersNum = instances.size();
+                    for (Instance instance : instances) {
+                        if (!instance.state().nameAsString().equals("terminated")){
+                            this.aws.terminateInstance(instance.instanceId());
+                            workersNum--;
+                        }
                     }
+                    if (workersNum == 0)
+                        break;
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
                 }
             }
+            this.allWorkersFinished = true;
+            // if the workers weren't busy when the termination signal came
+            this.checkIfTerminateMyself();
         });
-        this.allWorkersFinished = true;
-        // if the workers weren't busy when the termination signal came
-        this.checkIfTerminateMyself();
+        checkAllWorkersTerminated.start();
     }
 
     public static void main(String[] args) {
         try{
-            new Manager();
+            int loadFactor = Integer.parseInt(args[0]);
+            new Manager(loadFactor);
         } catch (Exception e){
             System.out.println(e.getMessage());
             System.exit(1);
