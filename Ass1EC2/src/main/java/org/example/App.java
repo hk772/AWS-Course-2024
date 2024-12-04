@@ -11,7 +11,11 @@ import software.amazon.awssdk.services.s3.model.*;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.*;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Base64;
@@ -22,6 +26,7 @@ import org.example.Messages.Message;
 
 public class App {
 
+    public static final String terminationQ = "TERMINATEQ";
     public static final String inputQ = "INPUTS";
     public static final String outputQ = "OUTPUTS";
     public static final String jobQ = "JOBS";
@@ -209,7 +214,7 @@ public class App {
         SendMessageResponse sendMessageResponse = sqs.sendMessage(sendMessageRequest);
     }
 
-    public void runInstanceFromAmiWithScript(String ami, int min, int max, String script, String instanceName, String labelValue) {
+    public List<Instance> runInstanceFromAmiWithScript(String ami, int min, int max, String script, String instanceName, String labelValue) {
         Tag nameTag = Tag.builder()
                 .key("Name")
                 .value(instanceName)
@@ -236,8 +241,10 @@ public class App {
                 .build();
 
         // Launch the instance
-        ec2.runInstances(runInstancesRequest);
+        RunInstancesResponse response = ec2.runInstances(runInstancesRequest);
+        List<Instance> instances = response.instances();
         System.out.println("instance inited");
+        return instances;
     }
 
     public List<Instance> getAllInstances() {
@@ -278,7 +285,7 @@ public class App {
             System.out.println("number of managers: " + lst.size());
             if (lst.size() == 0){
                 String filePath = "C:\\Users\\hagai\\.aws\\credentials";
-                initSpecificEC2(Manager_AMI, filePath, "Manager", "manager", "Manager");
+                initSpecificEC2(Manager_AMI, filePath, "Manager", "manager", "Manager", 1);
                 System.out.println("manager inited");
             }
         } catch (Exception e) {
@@ -289,13 +296,22 @@ public class App {
     public void initWorker(String name){
         try {
             String filePath = "/root/.aws/credentials";
-            initSpecificEC2(Worker_AMI, filePath, name, "worker", "Worker");
+            initSpecificEC2(Worker_AMI, filePath, name, "worker", "Worker", 1);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
-    private void initSpecificEC2(String AMI, String filePath, String name, String jarName, String label) throws IOException {
+    public List<Instance> initWorkers(String name, int max){
+        try {
+            String filePath = "/root/.aws/credentials";
+            return initSpecificEC2(Worker_AMI, filePath, name, "worker", "Worker", max);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private List<Instance> initSpecificEC2(String AMI, String filePath, String name, String jarName, String label, int max) throws IOException {
         String fileContent = new String(Files.readAllBytes(Paths.get(filePath)));
 
 //        String script = String.format("#!/bin/bash\n" +
@@ -325,26 +341,72 @@ public class App {
                         "fi\n",
                 fileContent, App.BUCKET_NAME, jarName, jarName, jarName, jarName, jarName);
 
-        this.runInstanceFromAmiWithScript(AMI, 1, 1, script, name, label);
+        return this.runInstanceFromAmiWithScript(AMI, 1, max, script, name, label);
     }
 
     public void initForFirstRun(){
-//        this.createS3Bucket(App.BUCKET_NAME);
+        this.createS3Bucket(App.BUCKET_NAME);
 
         this.createQueue(App.inputQ);
         this.createQueue(App.outputQ);
         this.createQueue(App.jobQ);
         this.createQueue(App.jobDoneQ);
+        this.createQueue(App.terminationQ);
+    }
+
+
+    public void terminateInstance(String instanceId) {
+        TerminateInstancesRequest terminateRequest = TerminateInstancesRequest.builder()
+                .instanceIds(instanceId)
+                .build();
+
+        // Terminate the instance
+        ec2.terminateInstances(terminateRequest);
+
+        System.out.println("Terminated instance: " + instanceId);
+    }
+
+    public String getMyInstanceID(){
+        try {
+            String tokenUrl = "http://169.254.169.254/latest/api/token";
+            HttpURLConnection tokenConn = (HttpURLConnection) new URL(tokenUrl).openConnection();
+            tokenConn.setRequestMethod("PUT");
+            tokenConn.setRequestProperty("X-aws-ec2-metadata-token-ttl-seconds", "21600"); // Token valid for 6 hours
+            tokenConn.connect();
+
+            BufferedReader tokenReader = new BufferedReader(new InputStreamReader(tokenConn.getInputStream()));
+            String token = tokenReader.readLine();
+            tokenReader.close();
+
+            String metadataUrl = "http://169.254.169.254/latest/meta-data/instance-id";
+            HttpURLConnection metadataConn = (HttpURLConnection) new URL(metadataUrl).openConnection();
+            metadataConn.setRequestMethod("GET");
+            metadataConn.setRequestProperty("X-aws-ec2-metadata-token", token); // Pass the token
+
+            BufferedReader metadataReader = new BufferedReader(new InputStreamReader(metadataConn.getInputStream()));
+            String instanceId = metadataReader.readLine();
+            metadataReader.close();
+
+            return instanceId;
+        } catch (Exception e) {
+            System.err.println("Error retrieving instance ID: " + e.getMessage());
+        }
+        return "";
+    }
+
+    public void terminateMyself(){
+        String instanceId = getMyInstanceID();
+        this.terminateInstance(instanceId);
     }
 
     public static void main(String[] args) {
         App app = new App();
         app.initForFirstRun();
 
-        // upload testing files to the bucket
-//        app.uploadFileToS3("C:\\Users\\hagai\\Documents\\uni\\year 5\\mevuzarot\\assignments\\Ass1EC2\\src\\main\\java\\org\\example\\PDFS\\ass1.pdf", "ass1.pdf");
-//        app.uploadFileToS3("C:\\Users\\hagai\\Documents\\uni\\year 5\\mevuzarot\\assignments\\Ass1EC2\\src\\main\\java\\org\\example\\PDFS\\ass2.pdf", "ass2.pdf");
-//        app.uploadFileToS3("C:\\Users\\hagai\\Documents\\uni\\year 5\\mevuzarot\\assignments\\Ass1EC2\\src\\main\\java\\org\\example\\PDFS\\ass3.pdf", "ass3.pdf");
+//         upload testing files to the bucket
+        app.uploadFileToS3("C:\\Users\\hagai\\Documents\\uni\\year 5\\mevuzarot\\assignments\\Ass1EC2\\src\\main\\java\\org\\example\\PDFS\\ass1.pdf", "ass1.pdf");
+        app.uploadFileToS3("C:\\Users\\hagai\\Documents\\uni\\year 5\\mevuzarot\\assignments\\Ass1EC2\\src\\main\\java\\org\\example\\PDFS\\ass2.pdf", "ass2.pdf");
+        app.uploadFileToS3("C:\\Users\\hagai\\Documents\\uni\\year 5\\mevuzarot\\assignments\\Ass1EC2\\src\\main\\java\\org\\example\\PDFS\\ass3.pdf", "ass3.pdf");
 
         // upload manager and worker jars:
 //        String managerJarPath = "C:\\Users\\hagai\\Documents\\uni\\year 5\\mevuzarot\\assignments\\Jars Newest\\Manager\\manager.jar";

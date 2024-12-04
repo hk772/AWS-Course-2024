@@ -1,19 +1,21 @@
 package org.example.Manager;
 
 import org.example.App;
-import org.example.Worker.Worker;
+import software.amazon.awssdk.services.ec2.model.Instance;
 
 import java.util.LinkedList;
+import java.util.List;
 
 public class JobQueueController extends Thread {
     int workersCount = 0;
-    int MAX_WORKERS_COUNT = 3;
+    int MAX_WORKERS_COUNT = 6;
     int jobsPerWorker;
-    LinkedList<Worker> workers;
     boolean allWorkersTerminated = false;
     App aws;
     String jobsQUrl;
     String jobsDoneQUrl;
+    List<String> workers;
+    boolean terminated = false;
 
     public JobQueueController(String jobsQUrl, String jobsDoneQUrl, int maxWorkersCount, int jobsPerWorker) {
         this.jobsQUrl = jobsQUrl;
@@ -25,13 +27,15 @@ public class JobQueueController extends Thread {
     }
 
     public void run() {
-        while (!allWorkersTerminated) {
+        while (!this.terminated) {
             if(this.workersCount == this.MAX_WORKERS_COUNT) {
-                // TODO: sleep until termination
+                // TODO: sleep someone calls my terminate method
             } else if (this.workersCount < this.MAX_WORKERS_COUNT) {
                 int jobsQSize = this.aws.getQueueSize(this.jobsQUrl);
-                while (this.workersCount < this.MAX_WORKERS_COUNT && jobsQSize > this.workersCount * this.jobsPerWorker) {
-                    this.createWorker();
+                int workersNeededTotal = (int)(jobsQSize / this.jobsPerWorker);
+                int workersToAdd = Math.min(workersNeededTotal - this.workersCount, this.MAX_WORKERS_COUNT - this.workersCount);
+                if (workersToAdd > 0) {
+                    this.createWorkers(workersToAdd);
                 }
             }
             try {
@@ -42,13 +46,14 @@ public class JobQueueController extends Thread {
         }
     }
 
-    private void createWorker() {
-        this.aws.initWorker(String.valueOf(this.workersCount));
-        System.out.println("created worker");
-        workersCount += 1;
+    private void createWorkers(int workersNeeded) {
+        List<Instance> instances = this.aws.initWorkers("Worker", workersNeeded);
+        for (Instance instance : instances) {
+            this.workers.add(instance.instanceId());
+        }
+        System.out.println("created " + instances.size() + " workers");
+        workersCount += instances.size();
     }
 
-    public void terminate() {
 
-    }
 }

@@ -22,13 +22,16 @@ public class Manager {
     Map<String, InputProcessor> inputProcs;
     final Object terminationLock = new Object();
     final Object signInLock = new Object();
+    final Object deleteMyselfLock = new Object();
     App aws;
     String myDirPath;
+    boolean allWorkersFinished;
 
     String jobsQUrl;
     String inputsQUrl;
     String outputsQUrl;
     String jobsDoneQUrl;
+    String terminateQUrl;
 
 
 
@@ -56,6 +59,7 @@ public class Manager {
         this.inputsQUrl = this.aws.getQueueUrl(App.inputQ);
         this.outputsQUrl = this.aws.getQueueUrl(App.outputQ);
         this.jobsDoneQUrl = this.aws.getQueueUrl(App.jobDoneQ);
+        this.terminateQUrl = this.aws.getQueueUrl(App.terminationQ);
     }
 
     private void startOutputFileForNewLocal(String path) {
@@ -89,15 +93,16 @@ public class Manager {
 
             try {
                 while (!this.terminated) {
+                    if (this.aws.getQueueSize(this.terminateQUrl) > 0){
+                        this.terminate();
+                        break;
+                    }
+
                     Message message = this.aws.popFromSQSAutoDel(this.inputsQUrl);
                     if (message != null) {
-                        if (message.content.equals("TERMINATE")) {
-                            this.terminate();
-                        } else{
-                            this.signIn(message.localID);
-                            InputProcessor inputProcessor = new InputProcessor(this, message, this.jobsQUrl, this.jobsDoneQUrl);
-                            inputProcessor.start();
-                        }
+                        this.signIn(message.localID);
+                        InputProcessor inputProcessor = new InputProcessor(this, message, this.jobsQUrl, this.jobsDoneQUrl);
+                        inputProcessor.start();
                     }
                     else {
                         Thread.sleep(1000);
@@ -162,7 +167,7 @@ public class Manager {
 
         synchronized (jobsCountLock) {
             try (FileWriter myWriter = new FileWriter(curPath, true)) {
-                myWriter.write(message.content + "\n");
+                myWriter.write(message.content + System.lineSeparator());
                 this.jobsCount.get(message.localID)[0]++;
             } catch (IOException e) {
                 System.err.println("Error handling job done: " + e.getMessage());
@@ -173,6 +178,15 @@ public class Manager {
             if (this.jobsCount.isEmpty()) {
                 System.out.println("Finished all jobs");
             }
+
+            this.checkIfTerminateMyself();
+        }
+    }
+
+    private synchronized void checkIfTerminateMyself() {
+        synchronized (this.deleteMyselfLock) {
+            if (this.terminated && this.allWorkersFinished && this.aws.getQueueSize(this.jobsDoneQUrl) == 0)
+                this.aws.terminateMyself();
         }
     }
 
@@ -204,14 +218,35 @@ public class Manager {
 
     public synchronized void terminate(){
         this.terminated = true;
-        this.jobQController.terminate();
+        this.jobQController.terminated = true;
         synchronized (this.terminationLock) {
             for (InputProcessor ip : inputProcs.values()) {
                 ip.terminate();
             }
         }
+        this.WaitForWorkersToFinishCurJob();
     }
 
+
+    public void WaitForWorkersToFinishCurJob() {
+        Thread checkAllWorkersTerminated  = new Thread(() -> {
+            System.out.println("w8ing foe all workers to finish current job :)");
+
+            while (true) {
+                try {
+                    int workersNum = this.aws.getAllInstancesWithLabel("Worker").size();
+                    if (workersNum == 0) {
+                        break;
+                    }
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        });
+        this.allWorkersFinished = true;
+        // if the workers weren't busy when the termination signal came
+        this.checkIfTerminateMyself();
+    }
 
     public static void main(String[] args) {
         try{
@@ -222,6 +257,7 @@ public class Manager {
         }
 
     }
+
 
 }
 

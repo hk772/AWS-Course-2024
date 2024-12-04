@@ -1,5 +1,6 @@
 package org.example.Local;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import org.example.App;
 import org.example.Messages.Message;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
@@ -17,8 +18,9 @@ public class Local extends Thread {
     String outPath;
     App aws;
 
-    String inputQUrl;
-    String outputQUrl;
+    String inputQUrl = null;
+    String outputQUrl = null;
+    String terminateQ = null;
 
 
     public Local(String url, String outPath, int loadFactor, String terminate){
@@ -70,20 +72,19 @@ public class Local extends Thread {
         this.aws.downloadFromS3(outFileKey, this.outPath + outFileKey);
     }
 
-    public void sendTerminateSignal() {}
-
     public void run() {
         System.out.println("Local is running, id: " + this.id);
         try {
             this.inputQUrl = this.aws.getQueueUrl(App.inputQ);
             this.outputQUrl = this.aws.getQueueUrl(App.outputQ);
+            this.terminateQ = this.aws.getQueueUrl(App.terminationQ);
 
             this.initManagerIfNotExists();
             this.uploadInputFile();
             this.sendMsgToManager();
         } catch (Exception e) {
             System.err.println(e.getMessage() + "\n restart");
-            // TODO: terminate manager if it has been created
+            // TODO: add appropriate recovery/termination for each of the lines above
             System.exit(1);
         }
 
@@ -94,9 +95,14 @@ public class Local extends Thread {
 
             while (true) {
                 String userInput = scanner.nextLine();
-                if (this.terminate.equalsIgnoreCase(userInput)) {
+                if (this.terminate.equals(userInput)) {
                     System.out.println("Termination activated!");
-                    break;
+                    try {
+                        this.aws.pushToSQS(this.terminateQ, new Message(this.id, "TERMINATE"));
+                        break;
+                    } catch (JsonProcessingException e) {
+                        System.out.println("Termination failed: " + e.getMessage());
+                    }
                 }
             }
 

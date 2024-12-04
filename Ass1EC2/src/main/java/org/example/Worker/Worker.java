@@ -12,16 +12,14 @@ import java.nio.file.Paths;
 public class Worker extends Thread {
 
     Operations operations;
-    String outAddress;
     boolean terminated = false;
     App aws;
     String myDirPath;
     String jobsQUrl;
     String jobsDoneQUrl;
+    String terminateQUrl;
 
     public Worker() throws IOException {
-        this.jobsQUrl = jobsQUrl;
-        this.jobsDoneQUrl = jobsDoneQUrl;
         this.operations = new Operations();
         this.aws = new App();
         this.myDirPath = System.getProperty("user.dir") + "/WorkersDir";
@@ -29,6 +27,7 @@ public class Worker extends Thread {
 
         this.jobsQUrl = this.aws.getQueueUrl(App.jobQ);
         this.jobsDoneQUrl = this.aws.getQueueUrl(App.jobDoneQ);
+        this.terminateQUrl = this.aws.getQueueUrl(App.terminationQ);
     }
 
 
@@ -91,13 +90,12 @@ public class Worker extends Thread {
             } catch (InterruptedException | JsonProcessingException e) {
                 throw new RuntimeException(e);
             }
+
+            this.terminated = (this.aws.getQueueSize(terminateQUrl) > 0);
         }
-    }
 
-    public void terminate(){
-        this.terminated = true;
+        this.aws.terminateMyself();
     }
-
 
     public static void main(String[] args) {
         try{
