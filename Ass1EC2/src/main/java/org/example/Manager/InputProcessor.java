@@ -3,7 +3,7 @@ package org.example.Manager;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import org.example.App;
-import org.example.Messages.Message;
+import org.example.other.Message;
 
 import java.nio.file.Files;
 import java.nio.file.Path;

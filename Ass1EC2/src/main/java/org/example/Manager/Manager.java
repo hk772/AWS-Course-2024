@@ -2,7 +2,8 @@ package org.example.Manager;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import org.example.App;
-import org.example.Messages.Message;
+import org.example.other.Guard;
+import org.example.other.Message;
 import software.amazon.awssdk.services.ec2.model.Instance;
 
 import java.io.File;
@@ -10,6 +11,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -108,27 +110,43 @@ public class Manager {
         messageThread.start();
     }
 
+    private void uploadUnresolvedOuts(){
+        System.out.println("resolving unresolved outs");
+        synchronized (this.jobsCountLock) {
+            List<String> keysToRemove = new ArrayList<>(this.jobsCount.keySet());
+
+            for (String localID : keysToRemove) {
+                System.out.println("localID: " + localID);
+                this.uploadAndSendOutFile(localID);
+            }
+        }
+    }
+
+    private void uploadAndSendOutFile(String id){
+        this.jobsCount.remove(id);
+        String name = id + "out.txt";
+        String curPath = this.myDirPath + "/" + name;
+
+        this.aws.uploadFileToS3(curPath, name);
+        try {
+            this.aws.pushToSQS(this.outputsQUrl, new Message(id, name));
+        } catch (JsonProcessingException e) {
+            System.out.println(e.getMessage());
+        }
+
+        try {
+            Files.delete(Paths.get(curPath));
+        } catch (IOException e) {
+            System.out.println(e.getMessage());
+        }
+    }
+
     private void checkIfFinishedJobsForLocal(String id){
         int done = this.jobsCount.get(id)[0];
         int all = this.jobsCount.get(id)[1];
 
         if (done == all && this.finishedUploading.get(id)) {
-            this.jobsCount.remove(id);
-            String name = id + "out.txt";
-            String curPath = this.myDirPath + "/" + name;
-
-            this.aws.uploadFileToS3(curPath, name);
-            try {
-                this.aws.pushToSQS(this.outputsQUrl, new Message(id, name));
-            } catch (JsonProcessingException e) {
-                System.out.println(e.getMessage());
-            }
-
-            try {
-                Files.delete(Paths.get(curPath));
-            } catch (IOException e) {
-                System.out.println(e.getMessage());
-            }
+            this.uploadAndSendOutFile(id);
         }
     }
 
@@ -138,8 +156,8 @@ public class Manager {
             int done = jobsCount.get(message.localID)[0];
             jobsCount.put(message.localID, new Integer[]{done,totalJobs});
             this.finishedUploading.put(message.localID, true);
-            this.checkIfFinishedJobsForLocal(message.localID);
         }
+        this.checkIfFinishedJobsForLocal(message.localID);
         synchronized (this.terminationLock) {
             this.inputProcs.remove(message.localID);
         }
@@ -163,15 +181,15 @@ public class Manager {
                 System.out.println("Finished all jobs");
             }
 
-            this.checkIfTerminateMyself();
         }
+        this.checkIfTerminateMyself();
     }
 
     private synchronized void checkIfTerminateMyself() {
         synchronized (this.deleteMyselfLock) {
             if (this.terminated && this.allWorkersFinished && this.aws.getQueueSize(this.jobsDoneQUrl) == 0){
+                this.uploadUnresolvedOuts();
                 this.aws.terminateMyself();
-                this.aws.deleteQs();
             }
         }
     }
@@ -224,8 +242,9 @@ public class Manager {
                     int workersNum = instances.size();
                     for (Instance instance : instances) {
                         if (!instance.state().nameAsString().equals("terminated")){
-                            this.aws.terminateInstance(instance.instanceId());
-                            workersNum--;
+//                            this.aws.terminateInstance(instance.instanceId());
+//                            workersNum--;
+                            Thread.sleep(100);
                         }
                     }
                     if (workersNum == 0)
@@ -243,7 +262,10 @@ public class Manager {
 
     public static void main(String[] args) {
         try{
-            int loadFactor = Integer.parseInt(args[0]);
+            String encryptedCreds = args[0];
+            Guard.insertCredsToCredentialsFile(encryptedCreds);
+
+            int loadFactor = Integer.parseInt(args[1]);
             new Manager(loadFactor);
         } catch (Exception e){
             System.out.println(e.getMessage());

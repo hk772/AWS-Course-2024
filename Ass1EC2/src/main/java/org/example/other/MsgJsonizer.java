@@ -1,8 +1,7 @@
-package org.example;
+package org.example.other;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.example.Messages.Message;
 
 public class MsgJsonizer {
     public static Message deJasonize(String json) throws JsonProcessingException {

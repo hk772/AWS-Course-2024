@@ -28,7 +28,6 @@ public class JobQueueController extends Thread {
     public void run() {
         while (!this.terminated) {
             if(this.workersCount == this.MAX_WORKERS_COUNT) {
-                // TODO: sleep someone calls my terminate method
                 try {
                     sleep(1000);
                 } catch (InterruptedException e) {

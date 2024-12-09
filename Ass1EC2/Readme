@@ -1,0 +1,114 @@
+Students:
+    Hagai Kordonsky 316119668
+    _---------------_
+
+
+    Instructions:
+local.jar will create the necessary queues and bucket
+
+> java -jar local.jar <input file>.txt <output file>.html n <terminate>
+
+        Overview
+
+    Communication
+5 sqs queues:
+    InputsQ         - messages from locals to manager
+    OutputsQ        - messages from manager to locals
+    JobsQ           - messages from manager to workers
+    JobsDoneQ       - messages from workers to manager
+    TerminationsQ   - termination msg from local to all
+1 bucket to deliver inputs and results
+
+    Local
+checks whether theres a manager instance running
+    if not creates the bucket and queues, and inits the manager EC2 instance ( from AMI )
+uploads the input file top s3 bucket
+send message to the manager in the inputsQ
+waits for the following
+    the message of the output from the manager that is due in the outputQ
+        once received the msg stopped listening to the queue
+    user input with the terminate string
+        once receives the terminate string sends a terminate message in the TerminateQ
+
+
+    Manager
+waits for inputs from locals in the inputQ
+    once an input arrived, delegates the input processing to a new thread -> InputProcessor
+    the InputProcessor creates job from each line in the input file and pushes it to the JobsQ
+    once it finished processing the input it pushes UploadDone msg to the jobsDoneQ this is notifying the manager that it finished its job
+    the InputProcessor for each input allows the inputs to be processed in parallel
+waits for jobDone messages from the JobsDoneQ
+    2 types of messages:
+        worker finished -> add the result to the out file for the local
+        InputProcessor finished -> update jobsDone map
+        every msg it checks if the complete job is done for a local and if so uploads the out file to a bucket and sends a msg to the local via the outputsQ
+starts a JobQController thread that is responsible for the creation of workers in accordance with the jobsCount/n
+Terminations ->
+    stops listening to inputsQ
+    terminates JobQController
+    terminates all inputProcessors
+    waits for all workers to terminate themselves
+    uploads and sends messages to all unresolved locals
+        (keeping a map  localID: (jobsDone:totalJobs))
+
+
+    Worker
+is a thread that listens to the JobQ.
+after each job checks the TerminateQ
+    if there a termination message it stops performing jobs and terminates itself
+
+
+
+
+    Security
+created a key in advance that all my jars know, encrypt the credentials with RSA with the key, and decrypt at destination
+
+    Scalability
+Inputs are processed separately by InputProcessor Threads, and workers are added as needed by the JobQController
+currently the manager is in charge directly to building the output file -> this probably should be also decided into threads so it will happened simultaneously
+
+    Worker dies
+when a worker gets a job, it becomes invisible in the JobsQ for 30 seconds, should be enough to handle a job like ours,
+and it is deleted from the queue only if the worker finished it and uploads the result,
+otherwise it becomes visible again for other workers
+
+ran 3 instances -> worked good
+
+    Termination Process
+terminates all EC2 instances
+deletes all Queue                                           //  TODO: local w8ts for the outQ to be empty then deletes the Qs
+the bucket is left for the local to view the results
+
+
+the workers are working hard, they handle jobs 1 by one each is waiting to read a queue msgs
+
+        Tasks
+    Local
+-> init manager if not exists
+-> upload input file and send msg to the manager
+-> wait for either terminate msg from user of the output msg from the manager
+-> create an html file with the results
+
+    Manager
+-> receive inputs from locals
+-> processes the inputs into jobs that are send to workers
+-> builds result file
+-> uploads the result file and sends result msg to locals
+
+    Worker
+-> get msg from the JobsQ
+-> execute job
+-> send a msg to the manager with the result
+
+
+
+        Distribution
+    waiting scenarios
+-> manager is waiting for inputs and jobsDone, handles them accordingly
+    => jobsDone are quick to handle so the manager handles them (adds result to output file and updates jobs count for local) before keeps listening
+    => input processing is a heavy job thus handled by an Input Processing thread
+-> Workers waiting for jobs
+    => worker is a thread that listens to JobsQ and as long as there are jobs it keeps executing them
+-> Local waiting for output
+    => the manager and the worker need time to process the input file and complete the job thus the local must wait until finished
+    => once a complete job finished the manager returns the outfile, for the correct local, even if for other locals there are more jobs to execute

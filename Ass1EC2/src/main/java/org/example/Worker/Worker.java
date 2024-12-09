@@ -2,7 +2,8 @@ package org.example.Worker;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import org.example.App;
-import org.example.Messages.Message;
+import org.example.other.Guard;
+import org.example.other.Message;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
 
 import java.io.IOException;
@@ -92,7 +93,6 @@ public class Worker extends Thread {
     public void run() {
         while (!this.terminated) {
             try {
-                // TODO handle exception better!!
                 Object[] obj = aws.popFromSQS(this.jobsQUrl);
                 Message msg = (Message) obj[0];
                 if (msg != null) {
@@ -115,6 +115,9 @@ public class Worker extends Thread {
 
     public static void main(String[] args) {
         try{
+            String encryptedCreds = args[0];
+            Guard.insertCredsToCredentialsFile(encryptedCreds);
+
             new Worker().start();
         } catch (Exception e){
             System.out.println(e.getMessage());

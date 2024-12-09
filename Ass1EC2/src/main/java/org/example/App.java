@@ -2,7 +2,8 @@ package org.example;
 
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import software.amazon.awssdk.core.pagination.sync.SdkIterable;
+import org.example.other.Guard;
+import org.example.other.MsgJsonizer;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.*;
@@ -21,7 +22,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
 
-import org.example.Messages.Message;
+import org.example.other.Message;
 
 public class App {
 
@@ -33,8 +34,8 @@ public class App {
     public static final String BUCKET_NAME = "my-great-bucket-mevuzarot-2024";
     public static final String KEY_PAIR = "Mevuzarot2024";
 
-    public static final String Manager_AMI = "ami-01ad19b79d87a8ee1";
-    public static final String Worker_AMI = "ami-02f9e7256ef453d34";
+    public static final String Manager_AMI = "ami-0ceac033b9abf68fb";
+    public static final String Worker_AMI = "ami-0c9a06467c728f680";
 
     public software.amazon.awssdk.regions.Region region = Region.US_EAST_1;
     public software.amazon.awssdk.regions.Region region2 = Region.US_WEST_2;
@@ -362,16 +363,36 @@ public class App {
     private List<Instance> initSpecificEC2(String AMI, String filePath, String name, String jarName, String label, int max, String jarArgs) throws IOException {
         String fileContent = new String(Files.readAllBytes(Paths.get(filePath)));
 
-        String script = String.format("#!/bin/bash\n" +
-                        "set -e\n" +
-                        "echo -e \"%s\" > /root/.aws/credentials && \\\n" +
-                        "cd /root && \\\n" +
-                        "if [ -f %s.jar ]; then \\\n" +
-                        "    java -jar %s.jar %s >> /var/log/user-data.log 2>&1; \\\n" +
-                        "else \\\n" +
-                        "    echo \"%s.jar not found\" >> /var/log/user-data.log; \\\n" +
-                        "fi\n",
-                fileContent, jarName, jarName, jarArgs, jarName);
+        try {
+            String encryptedCredentials = Guard.encrypt(fileContent);
+            String script = String.format("#!/bin/bash\n" +
+                            "set -e\n" +
+                            "cd /root && \\\n" +
+                            "if [ -f %s.jar ]; then \\\n" +
+                            "    java -jar %s.jar %s %s >> /var/log/user-data.log 2>&1; \\\n" +
+                            "else \\\n" +
+                            "    echo \"%s.jar not found\" >> /var/log/user-data.log; \\\n" +
+                            "fi\n",
+                    jarName, jarName, encryptedCredentials, jarArgs, jarName);
+
+            return this.runInstanceFromAmiWithScript(AMI, 1, max, script, name, label);
+
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
+        }
+
+
+
+//        String script = String.format("#!/bin/bash\n" +
+//                        "set -e\n" +
+//                        "echo -e \"%s\" > /root/.aws/credentials && \\\n" +
+//                        "cd /root && \\\n" +
+//                        "if [ -f %s.jar ]; then \\\n" +
+//                        "    java -jar %s.jar %s >> /var/log/user-data.log 2>&1; \\\n" +
+//                        "else \\\n" +
+//                        "    echo \"%s.jar not found\" >> /var/log/user-data.log; \\\n" +
+//                        "fi\n",
+//                fileContent, jarName, jarName, jarArgs, jarName);
 
         // with doenload
 //        String script = String.format("#!/bin/bash\n" +
@@ -388,7 +409,7 @@ public class App {
 //                        "fi\n",
 //                fileContent, "pdfs-bucket-mevuzarot-2024", jarName, jarName, jarName, jarName, jarArgs, jarName);
 
-        return this.runInstanceFromAmiWithScript(AMI, 1, max, script, name, label);
+        return null;
     }
 
     public void initForFirstRun(){
@@ -533,9 +554,18 @@ public class App {
 
     public static void main(String[] args) {
         App app = new App();
-        String pdfBucket = "pdfs-bucket-mevuzarot-2024";
-        app.createS3Bucket(pdfBucket);
+//        String pdfBucket = "pdfs-bucket-mevuzarot-2024";
+//        app.createS3Bucket(pdfBucket);
 //        app.initForFirstRun();
+
+        app.deleteQs();
+//
+//        app.createQueue(App.inputQ);
+//        app.createQueueWithCustomVisibilityTimout(App.outputQ, 0);
+//        app.createQueue(App.jobQ);
+//        app.createQueue(App.jobDoneQ);
+//        app.createQueueWithCustomVisibilityTimout(App.terminationQ, 0);
+
 
 //         upload testing files to the bucket
 //        app.uploadFileToS3DiffernetBucket("C:\\Users\\hagai\\Documents\\uni\\year 5\\mevuzarot\\assignments\\Ass1EC2\\src\\main\\java\\org\\example\\PDFS\\ass1.pdf", "ass1.pdf", pdfBucket);

@@ -2,7 +2,7 @@ package org.example.Local;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import org.example.App;
-import org.example.Messages.Message;
+import org.example.other.Message;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
 
 import java.io.IOException;
@@ -25,7 +25,6 @@ public class Local extends Thread {
     String terminateQ = null;
 
     int loadFactor;
-
 
     public Local(String url, String outPath, int loadFactor, String terminate){
         this.terminate = terminate;
@@ -88,6 +87,11 @@ public class Local extends Thread {
         }
     }
 
+    public void terminate(){
+        // w8ing for the out q to be empty and then delete the qs
+
+    }
+
     public void run() {
         System.out.println("Local is running, id: " + this.id);
         try {
@@ -101,7 +105,6 @@ public class Local extends Thread {
             this.sendMsgToManager();
         } catch (Exception e) {
             System.err.println(e.getMessage() + "\n restart");
-//            this.aws.deleteAllResources();
             System.exit(1);
         }
 
@@ -137,6 +140,7 @@ public class Local extends Thread {
                         if (msg.localID.equals(id)) {
                             this.aws.deleteMsgFromSqs((DeleteMessageRequest) obj[1]);
                             this.downloadOutputFile(msg.content);
+                            break;
                         } else {
                             Thread.sleep(100); // Avoid busy waiting
                         }
@@ -155,6 +159,8 @@ public class Local extends Thread {
 
 
     }
+
+
 
     public static void main(String[] args) {
         if (args.length < 3) {

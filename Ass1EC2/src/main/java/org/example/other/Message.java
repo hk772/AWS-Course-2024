@@ -1,4 +1,4 @@
-package org.example.Messages;
+package org.example.other;
 
 public class Message {
     public String localID;
