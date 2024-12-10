@@ -1,28 +1,37 @@
 Students:
-    Hagai Kordonsky 316119668
-    _---------------_
+    Hagai Kordonsky 316119668  חגי קורדונסקי
+    Gal Pinto       211564265   גל פינטו
 
 
     Instructions:
-local.jar will create the necessary queues and bucket
+before running must copy the credentials (all the credential as they appear in the show cli in the aws lab) to a file "C:\Users\<user>\.aws\credentials"
+and also to "C:\Users\<user>\.aws\config"
+local.jar will create the necessary queues and bucket if they dont exist
 
 > java -jar local.jar <input file>.txt <output file>.html n <terminate>
+                                                            terminate is optional
+
+to delete resources on the cloud:
+    del res     -> deletes everything
+    del qs      -> deletes queues
+    del bucket  -> deletes bucket
+
 
         Overview
-
     Communication
 5 sqs queues:
     InputsQ         - messages from locals to manager
-    OutputsQ        - messages from manager to locals
+    OutputsQ        - messages from manager to locals       -> visibility timeout = 0
     JobsQ           - messages from manager to workers
     JobsDoneQ       - messages from workers to manager
-    TerminationsQ   - termination msg from local to all
+    TerminationsQ   - termination msg from local to all     -> visibility timeout = 0
 1 bucket to deliver inputs and results
 
     Local
 checks whether theres a manager instance running
     if not creates the bucket and queues, and inits the manager EC2 instance ( from AMI )
-uploads the input file top s3 bucket
+    also emptys the queues if they have been left from previous runs
+uploads the input file to s3 bucket
 send message to the manager in the inputsQ
 waits for the following
     the message of the output from the manager that is due in the outputQ
@@ -56,12 +65,13 @@ Terminations ->
 is a thread that listens to the JobQ.
 after each job checks the TerminateQ
     if there a termination message it stops performing jobs and terminates itself
+    (if the termination msg came while the worker is working he will see iot only once it finished, so it will finish current job and then terminate)
 
 
 
 
     Security
-created a key in advance that all my jars know, encrypt the credentials with RSA with the key, and decrypt at destination
+created a key in advance that all the jars know, encrypt the credentials with RSA with the key, and decrypt at destination
 
     Scalability
 Inputs are processed separately by InputProcessor Threads, and workers are added as needed by the JobQController
@@ -76,9 +86,6 @@ ran 3 instances -> worked good
 
     Termination Process
 terminates all EC2 instances
-deletes all Queue                                           //  TODO: local w8ts for the outQ to be empty then deletes the Qs
-the bucket is left for the local to view the results
-
 
 the workers are working hard, they handle jobs 1 by one each is waiting to read a queue msgs
 
@@ -101,7 +108,6 @@ the workers are working hard, they handle jobs 1 by one each is waiting to read 
 -> send a msg to the manager with the result
 
 
-
         Distribution
     waiting scenarios
 -> manager is waiting for inputs and jobsDone, handles them accordingly
@@ -112,3 +118,15 @@ the workers are working hard, they handle jobs 1 by one each is waiting to read 
 -> Local waiting for output
     => the manager and the worker need time to process the input file and complete the job thus the local must wait until finished
     => once a complete job finished the manager returns the outfile, for the correct local, even if for other locals there are more jobs to execute
+
+    Limitations
+labrole that we can use only allows up to 19 ec2 instances => currently max instances we allowed is 10
+used the cheapest ect2's : t2 micro
+    Manager AMI: "ami-0ceac033b9abf68fb"
+    Worker AMI: "ami-0c9a06467c728f680"
+
+    RUN
+we ran 2 locals on input-sample-1 - 2500 entries
+                   input-sample-2 - 100 entries
+it took 4:40 to get 2 out files to get to the locals out file destinations
+n = 300

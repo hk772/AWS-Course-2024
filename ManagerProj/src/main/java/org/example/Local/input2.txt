@@ -1,0 +1,2 @@
+ToImage	ass2.pdf
+ToText	ass2.pdf

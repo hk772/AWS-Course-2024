@@ -166,16 +166,21 @@ public class AWS {
     }
 
     public void createBucket(String bucketName) {
-        s3.createBucket(CreateBucketRequest
-                .builder()
-                .bucket(bucketName)
-                .createBucketConfiguration(
-                        CreateBucketConfiguration.builder()
-                                .build())
-                .build());
-        s3.waiter().waitUntilBucketExists(HeadBucketRequest.builder()
-                .bucket(bucketName)
-                .build());
+        try {
+            s3.createBucket(CreateBucketRequest
+                    .builder()
+                    .bucket(bucketName)
+                    .createBucketConfiguration(
+                            CreateBucketConfiguration.builder()
+                                    .build())
+                    .build());
+            s3.waiter().waitUntilBucketExists(HeadBucketRequest.builder()
+                    .bucket(bucketName)
+                    .build());
+        } catch (Exception e) {
+            // TODO : handle cant create nucket exception
+            System.out.println(e.getMessage());
+        }
     }
 
     public SdkIterable<S3Object> listObjectsInBucket(String bucketName) {
