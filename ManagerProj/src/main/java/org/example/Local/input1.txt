@@ -1,2 +1,0 @@
-ToImage	ass1.pdf
-ToHTML	ass1.pdf
