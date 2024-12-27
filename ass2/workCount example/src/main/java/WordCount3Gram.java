@@ -26,7 +26,7 @@ public class WordCount3Gram {
             String[] words = gram.split(" ");
             String w1 = words[0];
             String w2 = words[1];
-            String w3 = words[3];
+            String w3 = words[2];
 
             String year = parts[1];
             String match_count = parts[2];

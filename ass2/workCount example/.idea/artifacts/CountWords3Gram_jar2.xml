@@ -1,6 +1,6 @@
 <component name="ArtifactManager">
-  <artifact type="jar" name="LocalApp:jar2">
-    <output-path>$PROJECT_DIR$/out/artifacts/LocalApp_jar2</output-path>
+  <artifact type="jar" name="CountWords3Gram:jar2">
+    <output-path>$PROJECT_DIR$/out/artifacts/CountWords3Gram_jar2</output-path>
     <root id="archive" name="LocalApp.jar">
       <element id="directory" name="META-INF">
         <element id="file-copy" path="$PROJECT_DIR$/META-INF/MANIFEST.MF" />
