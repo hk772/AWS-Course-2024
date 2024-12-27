@@ -14,9 +14,8 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.StringTokenizer;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class CountPairs3Gram {
 
@@ -53,7 +52,7 @@ public class CountPairs3Gram {
         }
     }
 
-    public static class ReducerClass extends Reducer<Text,MapWritable,Text,Writable[]> {
+    public static class ReducerClass extends Reducer<Text,MapWritable,Text,Text> {
 
         private Map<String,Integer> HSingles;
 
@@ -122,13 +121,35 @@ public class CountPairs3Gram {
 
                 for (Map.Entry<String,Integer> entry : HSingles.entrySet()) {
                     Text w0 = new Text(entry.getKey());
+                    Text tag = new Text("B");
 
-                    Writable[] writableArray = new Writable[] { w0, w, w_next, count2, count3, count23 };
-                    context.write(w0, writableArray);
+                    Writable[] writableArray = new Writable[] { w, w_next, tag, count2, count3, count23 };
+                    String output = String.join("\t", Arrays.stream(writableArray).map(x -> x.toString()).collect(Collectors.toList()));
+                    context.write(w0, new Text(output));
                 }
             }
 
 
+        }
+    }
+
+    public static class CombinerClass extends Reducer<Text,MapWritable,Text,MapWritable> {
+        @Override
+        public void reduce(Text w, Iterable<MapWritable> Hs, Context context) throws IOException,  InterruptedException {
+            MapWritable Hsum = new MapWritable();
+            for (MapWritable H : Hs) {
+                for (Writable w2 : H.keySet()){
+                    int val = ((IntWritable)H.get(w2)).get();
+
+                    if (Hsum.containsKey(w2)) {
+                        int oldVal = ((IntWritable)Hsum.get(w2)).get();
+                        Hsum.put(w2, new IntWritable(oldVal + val));
+                    } else {
+                        Hsum.put(w2, new IntWritable(val));
+                    }
+                }
+            }
+            context.write(w, Hsum);
         }
     }
 
@@ -148,7 +169,7 @@ public class CountPairs3Gram {
         job.setJarByClass(CountPairs3Gram.class);
         job.setMapperClass(MapperClass.class);
         job.setPartitionerClass(PartitionerClass.class);
-        job.setCombinerClass(ReducerClass.class);
+        job.setCombinerClass(CombinerClass.class);
         job.setReducerClass(ReducerClass.class);
         job.setMapOutputKeyClass(Text.class);
         job.setMapOutputValueClass(MapWritable.class);

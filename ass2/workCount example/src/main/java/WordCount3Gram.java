@@ -71,7 +71,7 @@ public class WordCount3Gram {
         job.setOutputValueClass(IntWritable.class);
 
         FileInputFormat.addInputPath(job, new Path("hdfs://localhost:9000/user/hdoop/input/3gram.txt"));
-        FileOutputFormat.setOutputPath(job, new Path("hdfs://localhost:9000/user/hdoop/output/3gramOut.txt"));
+        FileOutputFormat.setOutputPath(job, new Path("hdfs://localhost:9000/user/hdoop/output/3gramsOut"));
         System.exit(job.waitForCompletion(true) ? 0 : 1);
     }
 
