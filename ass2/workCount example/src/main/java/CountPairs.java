@@ -20,16 +20,11 @@ public class CountPairs {
         @Override
         public void map(LongWritable key, Text value, Context context) throws IOException,  InterruptedException {
             String[] StringVal = value.toString().split(" ");
-            MapWritable H = new MapWritable();
             for (int i = 0; i < StringVal.length - 1; i++) {
+                MapWritable H = new MapWritable();
                 Text w1 = new Text(StringVal[i]);
                 Text w2 = new Text(StringVal[i+1]);
-                if (H.containsKey(w2)) {
-                    int oldVal = ((IntWritable)H.get(w2)).get();
-                    H.put(w2, new IntWritable(oldVal+1));
-                } else {
-                    H.put(w2, one);
-                }
+                H.put(w2, one);
                 context.write(w1, H);
             }
         }
