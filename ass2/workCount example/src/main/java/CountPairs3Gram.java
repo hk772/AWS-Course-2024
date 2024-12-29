@@ -14,6 +14,7 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -21,6 +22,32 @@ public class CountPairs3Gram {
 
     public static class MapperClass extends Mapper<LongWritable, Text, Text, MapWritable> {
         private final static IntWritable one = new IntWritable(1);
+
+        private HashSet<String> stopSet;
+
+        @Override
+        public void setup(Context context) throws IOException {
+            Configuration conf = context.getConfiguration();
+            // load file and create singles table
+            String path = conf.get("stopwords");
+            FileSystem fs = FileSystem.get(conf);
+
+            Path filePath = new Path(path);
+
+            stopSet = new HashSet<>();
+
+            try (FSDataInputStream fsDataInputStream = fs.open(filePath);
+                 BufferedReader reader = new BufferedReader(new InputStreamReader(fsDataInputStream, StandardCharsets.UTF_8))) {
+
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    stopSet.add(line);
+                }
+            }
+
+
+        }
+
 
         @Override
         public void map(LongWritable lineId, Text line, Context context) throws IOException,  InterruptedException {
@@ -42,12 +69,19 @@ public class CountPairs3Gram {
             MapWritable H1 = new MapWritable();
             MapWritable H2 = new MapWritable();
 
-            H1.put(w2Text, matchCountWritable);
-            H2.put(w3Text, matchCountWritable);
 
-            context.write(w1Text, H1);
-            context.write(w2Text, H2);
-
+            if (!stopSet.contains(w2)) {
+                // if 1 and 2 not in stop words emit 1,2
+                if (!stopSet.contains(w1)) {
+                    H1.put(w2Text, matchCountWritable);
+                    context.write(w1Text, H1);
+                }
+                // if 2 and 3 not in stop words emit 2,3
+                if (!stopSet.contains(w3)) {
+                    H2.put(w3Text, matchCountWritable);
+                    context.write(w2Text, H2);
+                }
+            }
         }
     }
 
@@ -76,7 +110,7 @@ public class CountPairs3Gram {
 
                     // Open the file and read it
                     FSDataInputStream fsDataInputStream = fs.open(filePath);
-                    BufferedReader reader = new BufferedReader(new InputStreamReader(fsDataInputStream));
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(fsDataInputStream, StandardCharsets.UTF_8));
 
                     String line;
                     while ((line = reader.readLine()) != null) {
@@ -164,6 +198,7 @@ public class CountPairs3Gram {
         System.out.println(args.length > 0 ? args[0] : "no args");
         Configuration conf = new Configuration();
         conf.set("job1Out", "hdfs://localhost:9000/user/hdoop/output/3gramsOut");
+        conf.set("stopwords", "hdfs://localhost:9000/user/hdoop/input/stopwords.txt");
         Job job = Job.getInstance(conf, "CountPairs3Gram");
         job.setJarByClass(CountPairs3Gram.class);
         job.setMapperClass(MapperClass.class);
