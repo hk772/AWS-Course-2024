@@ -1,8 +1,9 @@
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
-import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
@@ -11,13 +12,42 @@ import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
+import java.io.BufferedReader;
 import java.io.IOException;
-import java.util.StringTokenizer;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.HashSet;
 
 public class WordCount3Gram {
 
     public static class MapperClass extends Mapper<LongWritable, Text, Text, IntWritable> {
         private final static IntWritable one = new IntWritable(1);
+        private HashSet<String> stopSet;
+
+        @Override
+        public void setup(Context context) throws IOException {
+            Configuration conf = context.getConfiguration();
+            // load file and create singles table
+            String path = conf.get("stopwords");
+            FileSystem fs = FileSystem.get(conf);
+
+            Path filePath = new Path(path);
+
+            stopSet = new HashSet<>();
+
+            try (FSDataInputStream fsDataInputStream = fs.open(filePath);
+                 BufferedReader reader = new BufferedReader(new InputStreamReader(fsDataInputStream, StandardCharsets.UTF_8))) {
+
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    stopSet.add(line);
+//                    System.out.println(Arrays.toString(line.getBytes(StandardCharsets.UTF_8)));
+                }
+            }
+
+
+        }
 
         @Override
         public void map(LongWritable lineId, Text line, Context context) throws IOException,  InterruptedException {
@@ -31,9 +61,16 @@ public class WordCount3Gram {
             String year = parts[1];
             String match_count = parts[2];
 
-            context.write(new Text(w1), new IntWritable(Integer.parseInt(match_count)));
-            context.write(new Text(w2), new IntWritable(Integer.parseInt(match_count)));
-            context.write(new Text(w3), new IntWritable(Integer.parseInt(match_count)));
+            int count = Integer.parseInt(match_count);
+            this.emitIfNotStopWord(w1, count, context);
+            this.emitIfNotStopWord(w2, count, context);
+            this.emitIfNotStopWord(w3, count, context);
+        }
+
+        private void emitIfNotStopWord(String word, int count, Context context) throws IOException,  InterruptedException {
+            if (!stopSet.contains(word)) {
+                context.write(new Text(word), new IntWritable(count));
+            }
         }
     }
 
@@ -59,6 +96,7 @@ public class WordCount3Gram {
         System.out.println("[DEBUG] STEP 1 started!");
         System.out.println(args.length > 0 ? args[0] : "no args");
         Configuration conf = new Configuration();
+        conf.set("stopwords", "hdfs://localhost:9000/user/hdoop/input/stopwords.txt");
         Job job = Job.getInstance(conf, "Word Count 3Gram");
         job.setJarByClass(WordCount.class);
         job.setMapperClass(MapperClass.class);

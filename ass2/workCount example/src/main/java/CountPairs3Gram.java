@@ -21,7 +21,6 @@ public class CountPairs3Gram {
 
     public static class MapperClass extends Mapper<LongWritable, Text, Text, MapWritable> {
         private final static IntWritable one = new IntWritable(1);
-        private Text word = new Text();
 
         @Override
         public void map(LongWritable lineId, Text line, Context context) throws IOException,  InterruptedException {
