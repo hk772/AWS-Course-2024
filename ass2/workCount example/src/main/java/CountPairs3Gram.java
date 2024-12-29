@@ -88,6 +88,7 @@ public class CountPairs3Gram {
     public static class ReducerClass extends Reducer<Text,MapWritable,Text,Text> {
 
         private Map<String,Integer> HSingles;
+        private Long totalCount = 0L;
 
         @Override
         public void setup(Context context) throws IOException, InterruptedException {
@@ -119,6 +120,7 @@ public class CountPairs3Gram {
                         String n = parts[1];
                         int count = Integer.parseInt(n);
                         HSingles.put(w, count);
+                        totalCount += count;
                     }
 
                     reader.close();
@@ -156,7 +158,7 @@ public class CountPairs3Gram {
                     Text w0 = new Text(entry.getKey());
                     Text tag = new Text("B");
 
-                    Writable[] writableArray = new Writable[] { w, w_next, tag, count2, count3, count23 };
+                    Writable[] writableArray = new Writable[] { w, w_next, tag, count2, count3, count23 , new LongWritable(totalCount)};
                     String output = String.join("\t", Arrays.stream(writableArray).map(x -> x.toString()).collect(Collectors.toList()));
                     context.write(w0, new Text(output));
                 }
