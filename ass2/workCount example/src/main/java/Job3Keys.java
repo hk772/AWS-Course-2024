@@ -29,10 +29,10 @@ public class Job3Keys implements WritableComparable<Job3Keys> {
 
     @Override
     public int compareTo(Job3Keys o) {
-        if (this.w1.toString().compareTo(o.w1.toString()) == 0) {
-            return this.w2.toString().compareTo(o.w2.toString());
-        }
-        return this.w1.toString().compareTo(o.w1.toString());
+        String combined = w1.toString() + w2.toString();
+        String combined2 = o.w1.toString() + o.w2.toString();
+
+        return combined.compareTo(combined2);
     }
 
     @Override
@@ -46,4 +46,15 @@ public class Job3Keys implements WritableComparable<Job3Keys> {
         w1 = new Text(in.readUTF());
         w2 = new Text(in.readUTF());
     }
+
+    @Override
+    public int hashCode(){
+        String combined = w1.toString() + w2.toString();
+        return combined.hashCode();
+    }
+
+
+
 }
+
+

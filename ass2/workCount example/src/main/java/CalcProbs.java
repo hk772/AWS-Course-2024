@@ -51,11 +51,12 @@ public class CalcProbs {
             // check if from out2 or from 3gram
             if (is3Gram(line.toString())) {
                 String[] parts = line.toString().split("\t");
-                String w1 = parts[0];
-                String w2 = parts[1];
-                String w3 = parts[2];
+                String[] words = parts[0].split(" ");
+                String w1 = words[0];
+                String w2 = words[1];
+                String w3 = words[2];
 
-                String match_count = parts[3];
+                String match_count = parts[2];
 
                 Text w1Text = new Text(w1);
                 Text w2Text = new Text(w2);
@@ -97,9 +98,7 @@ public class CalcProbs {
 
     public static class ReducerClass extends Reducer<Job3Keys,Job3Val,Out3Key,Text> {
 
-        long currentCount12;
-        HashMap<String, Long[]> H;
-        Job3Keys currentw1w2;
+
 
         private final int VALUE_LENGTH = 4;
         private final int COUNT2_INDEX = 0;
@@ -110,26 +109,9 @@ public class CalcProbs {
         private Long C0 = -1L;
 
         @Override
-        public void setup(Context context) throws IOException, InterruptedException {
-            currentCount12 = 0;
-            H = new HashMap<>();
-            currentw1w2 = null;
-
-        }
-
-
-
-
-
-        @Override
         public void reduce(Job3Keys key, Iterable<Job3Val> vals, Context context) throws IOException,  InterruptedException {
-            if (currentw1w2 == null) {
-                currentw1w2 = key;
-            } else if (currentw1w2.compareTo(key) != 0) {
-                finishCurrent(context);
-                currentw1w2 = key;
-            }
-
+            long currentCount12 = 0;
+            HashMap<String, Long[]> H = new HashMap<>();
 
             for (Job3Val val : vals) {
                 Text w3 = val.getW3();
@@ -162,14 +144,12 @@ public class CalcProbs {
                     H.get(w3.toString())[COUNT23_INDEX] = count23.get();
                 }
             }
-
-
-
-
-
+            finishCurrent(context, H, key, currentCount12);
         }
 
-        private void finishCurrent(Context context) throws IOException, InterruptedException {
+
+
+        private void finishCurrent(Context context, HashMap<String, Long[]> H, Job3Keys currentw1w2, long currentCount12) throws IOException, InterruptedException {
             for (String w3_str : H.keySet()){
                 long C1 = H.get(w3_str)[COUNT2_INDEX];
                 long N1 = H.get(w3_str)[COUNT3_INDEX];
@@ -186,8 +166,23 @@ public class CalcProbs {
                 double k2 = (Math.log(N2 + 1) + 1) / (Math.log(N2 + 1) + 2);
                 double k3 = (Math.log(N3 + 1) + 1) / (Math.log(N3 + 1) + 2);
 
-                double prob = k3 * ((double) N3 /C2) + (1 - k3) * k2 * ((double) N2 /C1) + (1 - k3) * (1 - k2) * ((double) N1 /C0);
+                double part1 = 0;
+                if (C2 != 0)
+                    part1 = k3 * ((double) N3 /C2);
 
+                double part2 = 0;
+                if (C1 != 0)
+                    part2 = (1 - k3) * k2 * ((double) N2 /C1);
+
+                double part3 = 0;
+                if (C0 != 0)
+                    part3 = (1 - k3) * (1 - k2) * ((double) N1 /C0);
+
+                double prob = part1 + part2 + part3;
+                System.out.println(String.format(
+                        "Debug info: w3_str=%s, C1=%d, N1=%d, N2=%d, N3=%d, C2=%d, w1=%s, w2=%s, w3=%s, k2=%f, k3=%f, prob=%f",
+                        w3_str, C1, N1, N2, N3, C2, w1, w2, w3, k2, k3, prob
+                ));
                 context.write(new Out3Key(w1, w2, new DoubleWritable(prob)), w3);
 
             }
@@ -223,16 +218,12 @@ public class CalcProbs {
         }
     }
 
-    public static class PartitionerClass extends Partitioner<Text, MapWritable> {
+    public static class PartitionerClass extends Partitioner<Job3Keys, Job3Val> {
         @Override
-        public int getPartition(Text key, MapWritable value, int numPartitions) {
+        public int getPartition(Job3Keys key, Job3Val value, int numPartitions) {
             return key.hashCode() % numPartitions;
         }
     }
-
-
-
-
 
     public static class CustomOutputFormat extends FileOutputFormat<Out3Key, Text> {
 
@@ -270,9 +261,12 @@ public class CalcProbs {
 
                 System.out.println(w1 + "\t" + w2 + "\t" + w3 + "\t" + prob);
 
-                // Write the formatted output to the file
-                out.writeBytes(w1 + "\t" + w2 + "\t" + w3 + "\t" + prob);
-                out.writeBytes("\n");
+                // Format the line with UTF-8 support
+                String formattedLine = w1 + "\t" + w2 + "\t" + w3 + "\t" + prob + "\n";
+                byte[] utf8Bytes = formattedLine.getBytes(StandardCharsets.UTF_8);
+
+                // Write the bytes
+                out.write(utf8Bytes);
             }
 
             @Override
