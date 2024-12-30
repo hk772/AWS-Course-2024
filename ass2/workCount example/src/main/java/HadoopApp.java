@@ -1,11 +1,10 @@
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.IntWritable;
-import org.apache.hadoop.io.MapWritable;
-import org.apache.hadoop.io.NullWritable;
-import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.io.*;
+import org.apache.hadoop.io.compress.CompressionCodec;
+import org.apache.hadoop.io.compress.CompressionCodecFactory;
+import org.apache.hadoop.mapreduce.*;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.jobcontrol.ControlledJob;
 import org.apache.hadoop.mapreduce.lib.jobcontrol.JobControl;
@@ -13,12 +12,33 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 
+import java.io.IOException;
+
 public class HadoopApp extends Configured implements Tool{
     public static void main(String[] args) throws Exception {
         int res = ToolRunner.run(new Configuration(), new HadoopApp(),
                 args);
         System.exit(res);
     }
+
+    public static class HebrewInputFormat extends FileInputFormat<LongWritable, Text> {
+
+
+        @Override
+        public RecordReader<LongWritable, Text> createRecordReader(InputSplit split, TaskAttemptContext context) {
+            return new HebrewRecordReader();
+        }
+
+        @Override
+        protected boolean isSplitable(JobContext context, Path file) {
+            CompressionCodec codec =
+                    new CompressionCodecFactory(context.getConfiguration()).getCodec(file);
+            return codec == null;
+        }
+
+    }
+
+
 
     @Override
     public int run(String[] args) throws Exception {

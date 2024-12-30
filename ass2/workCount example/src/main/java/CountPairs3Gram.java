@@ -191,7 +191,7 @@ public class CountPairs3Gram {
     public static class PartitionerClass extends Partitioner<Text, MapWritable> {
         @Override
         public int getPartition(Text key, MapWritable value, int numPartitions) {
-            return key.hashCode() % numPartitions;
+            return (key.hashCode() & Integer.MAX_VALUE) % numPartitions;
         }
     }
 

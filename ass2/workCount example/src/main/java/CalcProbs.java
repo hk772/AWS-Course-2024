@@ -221,7 +221,7 @@ public class CalcProbs {
     public static class PartitionerClass extends Partitioner<Job3Keys, Job3Val> {
         @Override
         public int getPartition(Job3Keys key, Job3Val value, int numPartitions) {
-            return key.hashCode() % numPartitions;
+            return (key.hashCode() & Integer.MAX_VALUE) % numPartitions;
         }
     }
 
