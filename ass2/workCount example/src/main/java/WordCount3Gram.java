@@ -98,7 +98,7 @@ public class WordCount3Gram {
         Configuration conf = new Configuration();
         conf.set("stopwords", "hdfs://localhost:9000/user/hdoop/input/stopwords.txt");
         Job job = Job.getInstance(conf, "Word Count 3Gram");
-        job.setJarByClass(WordCount.class);
+        job.setJarByClass(WordCount3Gram.class);
         job.setMapperClass(MapperClass.class);
         job.setPartitionerClass(PartitionerClass.class);
         job.setCombinerClass(ReducerClass.class);

@@ -49,7 +49,7 @@ public class CalcProbs {
         @Override
         public void map(LongWritable lineId, Text line, Context context) throws IOException,  InterruptedException {
             // check if from out2 or from 3gram
-            if (is3Gram(line.toString())) {
+            if (is3Gram(line.toString())) { // Tag "A"
                 String[] parts = line.toString().split("\t");
                 String[] words = parts[0].split(" ");
                 String w1 = words[0];
@@ -67,7 +67,7 @@ public class CalcProbs {
                     context.write(new Job3Keys(w1Text, w2Text), new Job3Val(w3Text, new Text("A"), matchCountWritable));
                 }
             }
-            else{
+            else{ // Tag "B"
                 String[] parts = line.toString().split("\t");
                 String w1 = parts[0];
                 String w2 = parts[1];
@@ -179,10 +179,10 @@ public class CalcProbs {
                     part3 = (1 - k3) * (1 - k2) * ((double) N1 /C0);
 
                 double prob = part1 + part2 + part3;
-                System.out.println(String.format(
-                        "Debug info: w3_str=%s, C1=%d, N1=%d, N2=%d, N3=%d, C2=%d, w1=%s, w2=%s, w3=%s, k2=%f, k3=%f, prob=%f",
-                        w3_str, C1, N1, N2, N3, C2, w1, w2, w3, k2, k3, prob
-                ));
+//                System.out.println(String.format(
+//                        "Debug info: w3_str=%s, C1=%d, N1=%d, N2=%d, N3=%d, C2=%d, w1=%s, w2=%s, w3=%s, k2=%f, k3=%f, prob=%f",
+//                        w3_str, C1, N1, N2, N3, C2, w1, w2, w3, k2, k3, prob
+//                ));
                 context.write(new Out3Key(w1, w2, new DoubleWritable(prob)), w3);
 
             }
@@ -213,7 +213,7 @@ public class CalcProbs {
 
             for (String w3_str : H.keySet()){
                 context.write(key, new Job3Val(new Text(w3_str), new Text("A"), new LongWritable(H.get(w3_str))));
-                System.out.println("reducer: out");
+//                System.out.println("combiner: out");
             }
         }
     }
@@ -259,7 +259,7 @@ public class CalcProbs {
                 String w3 = value.toString(); // Assuming value is w3
                 double prob = key.getProb().get();
 
-                System.out.println(w1 + "\t" + w2 + "\t" + w3 + "\t" + prob);
+//                System.out.println(w1 + "\t" + w2 + "\t" + w3 + "\t" + prob);
 
                 // Format the line with UTF-8 support
                 String formattedLine = w1 + "\t" + w2 + "\t" + w3 + "\t" + prob + "\n";
@@ -295,7 +295,7 @@ public class CalcProbs {
         System.out.println("[DEBUG] STEP 1 started!");
         System.out.println(args.length > 0 ? args[0] : "no args");
         Configuration conf = new Configuration();
-        conf.set("job1Out", "hdfs://localhost:9000/user/hdoop/output/3gramsOut");
+//        conf.set("job1Out", "hdfs://localhost:9000/user/hdoop/output/3gramsOut");
         conf.set("stopwords", "hdfs://localhost:9000/user/hdoop/input/stopwords.txt");
         Job job = Job.getInstance(conf, "CalcProbs");
         job.setJarByClass(CalcProbs.class);
