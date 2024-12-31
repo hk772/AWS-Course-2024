@@ -92,7 +92,7 @@ public class HadoopApp extends Configured implements Tool{
         job3.setPartitionerClass(CalcProbs.PartitionerClass.class);
         job3.setCombinerClass(CalcProbs.CombinerClass.class);
         job3.setReducerClass(CalcProbs.ReducerClass.class);
-        job3.setMapOutputKeyClass(Job3Keys.class);
+        job3.setMapOutputKeyClass(WordPairKey.class);
         job3.setMapOutputValueClass(Job3Val.class);
         job3.setOutputKeyClass(Out3Key.class);
         job3.setOutputValueClass(Text.class);

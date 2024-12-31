@@ -14,7 +14,7 @@ import java.util.*;
 public class CalcProbs {
     private static boolean isLocal = false;
 
-    public static class MapperClass extends Mapper<LongWritable, Text, Job3Keys, Job3Val> {
+    public static class MapperClass extends Mapper<LongWritable, Text, WordPairKey, Job3Val> {
         private final static IntWritable one = new IntWritable(1);
 
         private HashSet<String> stopSet;
@@ -77,7 +77,7 @@ public class CalcProbs {
                 LongWritable matchCountWritable = new LongWritable(Long.parseLong(match_count));
 
                 if (!stopSet.contains(w1) && !stopSet.contains(w2) && !stopSet.contains(w3)) {
-                    context.write(new Job3Keys(w1Text, w2Text), new Job3Val(w3Text, new Text("A"), matchCountWritable));
+                    context.write(new WordPairKey(w1Text, w2Text), new Job3Val(w3Text, new Text("A"), matchCountWritable));
                 }
             }
             else { // Tag "B"
@@ -106,14 +106,14 @@ public class CalcProbs {
                 LongWritable totalCountWritable = new LongWritable(Long.parseLong(totalCount));
 
                 // cant contain stop words bc output from job 2
-                context.write(new Job3Keys(w1Text, w2Text), new Job3Val(w3Text, tagText, count2Writable, count3Writable, count23Writable, totalCountWritable));
+                context.write(new WordPairKey(w1Text, w2Text), new Job3Val(w3Text, tagText, count2Writable, count3Writable, count23Writable, totalCountWritable));
             }
 
         }
     }
 
 
-    public static class ReducerClass extends Reducer<Job3Keys,Job3Val,Out3Key,Text> {
+    public static class ReducerClass extends Reducer<WordPairKey,Job3Val,Out3Key,Text> {
 
 
 
@@ -126,7 +126,7 @@ public class CalcProbs {
         private Long C0 = -1L;
 
         @Override
-        public void reduce(Job3Keys key, Iterable<Job3Val> vals, Context context) throws IOException,  InterruptedException {
+        public void reduce(WordPairKey key, Iterable<Job3Val> vals, Context context) throws IOException,  InterruptedException {
             long currentCount12 = 0;
             HashMap<String, Long[]> H = new HashMap<>();
 
@@ -166,7 +166,7 @@ public class CalcProbs {
 
 
 
-        private void finishCurrent(Context context, HashMap<String, Long[]> H, Job3Keys currentw1w2, long currentCount12) throws IOException, InterruptedException {
+        private void finishCurrent(Context context, HashMap<String, Long[]> H, WordPairKey currentw1w2, long currentCount12) throws IOException, InterruptedException {
             for (String w3_str : H.keySet()){
                 long C1 = H.get(w3_str)[COUNT2_INDEX];
                 long N1 = H.get(w3_str)[COUNT3_INDEX];
@@ -208,9 +208,9 @@ public class CalcProbs {
 
     }
 
-    public static class CombinerClass extends Reducer<Job3Keys,Job3Val,Job3Keys,Job3Val> {
+    public static class CombinerClass extends Reducer<WordPairKey,Job3Val, WordPairKey,Job3Val> {
         @Override
-        public void reduce(Job3Keys key, Iterable<Job3Val> vals, Context context) throws IOException,  InterruptedException {
+        public void reduce(WordPairKey key, Iterable<Job3Val> vals, Context context) throws IOException,  InterruptedException {
             HashMap<String, Long> H = new HashMap<>();
             for (Job3Val val : vals) {
                 Text w3 = val.getW3();
@@ -235,9 +235,9 @@ public class CalcProbs {
         }
     }
 
-    public static class PartitionerClass extends Partitioner<Job3Keys, Job3Val> {
+    public static class PartitionerClass extends Partitioner<WordPairKey, Job3Val> {
         @Override
-        public int getPartition(Job3Keys key, Job3Val value, int numPartitions) {
+        public int getPartition(WordPairKey key, Job3Val value, int numPartitions) {
             return (key.hashCode() & Integer.MAX_VALUE) % numPartitions;
         }
     }
@@ -332,7 +332,7 @@ public class CalcProbs {
         job.setCombinerClass(CombinerClass.class);
         job.setReducerClass(ReducerClass.class);
 
-        job.setMapOutputKeyClass(Job3Keys.class);
+        job.setMapOutputKeyClass(WordPairKey.class);
         job.setMapOutputValueClass(Job3Val.class);
         job.setOutputKeyClass(Out3Key.class);
         job.setOutputValueClass(Text.class);

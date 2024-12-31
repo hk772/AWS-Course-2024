@@ -5,13 +5,13 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-public class Job3Keys implements WritableComparable<Job3Keys> {
+public class WordPairKey implements WritableComparable<WordPairKey> {
     private Text w1;
     private Text w2;
 
-    public Job3Keys() {}
+    public WordPairKey() {}
 
-    public Job3Keys(Text w1, Text w2) {
+    public WordPairKey(Text w1, Text w2) {
         this.w1 = w1;
         this.w2 = w2;
     }
@@ -28,7 +28,7 @@ public class Job3Keys implements WritableComparable<Job3Keys> {
     }
 
     @Override
-    public int compareTo(Job3Keys o) {
+    public int compareTo(WordPairKey o) {
         String combined = w1.toString() + w2.toString();
         String combined2 = o.w1.toString() + o.w2.toString();
 
@@ -52,9 +52,6 @@ public class Job3Keys implements WritableComparable<Job3Keys> {
         String combined = w1.toString() + w2.toString();
         return combined.hashCode();
     }
-
-
-
 }
 
 
