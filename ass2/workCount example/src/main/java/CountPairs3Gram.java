@@ -9,16 +9,21 @@ import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Partitioner;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
 
 public class CountPairs3Gram {
+
+    private static boolean isLocal = false;
 
     public static class MapperClass extends Mapper<LongWritable, Text, Text, MapWritable> {
         private final static IntWritable one = new IntWritable(1);
@@ -31,6 +36,11 @@ public class CountPairs3Gram {
             // load file and create singles table
             String path = conf.get("stopwords");
             FileSystem fs = FileSystem.get(conf);
+            if (!isLocal) {
+                try {
+                    fs = FileSystem.get(new java.net.URI(AWSApp.baseURL), new Configuration());
+                } catch (URISyntaxException ignored) {};
+            }
 
             Path filePath = new Path(path);
 
@@ -51,9 +61,14 @@ public class CountPairs3Gram {
 
         @Override
         public void map(LongWritable lineId, Text line, Context context) throws IOException,  InterruptedException {
+//            System.out.println("DEBUG: CountPairs3Gram s3-3gram line: " + line.toString());
             String[] parts = line.toString().split("\t");
             String gram = parts[0];
             String[] words = gram.split(" ");
+            if (words.length < 3 || parts.length < 3) {
+                System.out.println("DEBUG: Malformed 3gram line: " + line.toString());
+                return;
+            }
             String w1 = words[0];
             String w2 = words[1];
             String w3 = words[2];
@@ -96,6 +111,11 @@ public class CountPairs3Gram {
             // load file and create singles table
             String path = conf.get("job1Out");
             FileSystem fs = FileSystem.get(conf);
+            if (!isLocal) {
+                try {
+                    fs = FileSystem.get(new java.net.URI(AWSApp.baseURL), new Configuration());
+                } catch (URISyntaxException ignored) {};
+            }
 
             Path dirPath = new Path(path);
 
@@ -199,8 +219,14 @@ public class CountPairs3Gram {
         System.out.println("[DEBUG] STEP 1 started!");
         System.out.println(args.length > 0 ? args[0] : "no args");
         Configuration conf = new Configuration();
-        conf.set("job1Out", "hdfs://localhost:9000/user/hdoop/output/3gramsOut");
-        conf.set("stopwords", "hdfs://localhost:9000/user/hdoop/input/stopwords.txt");
+        if (isLocal) {
+            conf.set("job1Out", "hdfs://localhost:9000/user/hdoop/output/3gramsOut");
+            conf.set("stopwords", "hdfs://localhost:9000/user/hdoop/input/stopwords.txt");
+        }
+        else {
+            conf.set("job1Out", AWSApp.baseURL + "/output/3gramsOut");
+            conf.set("stopwords", AWSApp.baseURL + "/input/stopwords.txt");
+        }
         Job job = Job.getInstance(conf, "CountPairs3Gram");
         job.setJarByClass(CountPairs3Gram.class);
         job.setMapperClass(MapperClass.class);
@@ -210,10 +236,22 @@ public class CountPairs3Gram {
         job.setMapOutputKeyClass(Text.class);
         job.setMapOutputValueClass(MapWritable.class);
         job.setOutputKeyClass(Text.class);
-        job.setOutputValueClass(MapWritable.class);
+        job.setOutputValueClass(Text.class);
 
-        FileInputFormat.addInputPath(job, new Path("hdfs://localhost:9000/user/hdoop/input/3gram.txt"));
-        FileOutputFormat.setOutputPath(job, new Path("hdfs://localhost:9000/user/hdoop/output/out3"));
+        if (isLocal) {
+            FileInputFormat.addInputPath(job, new Path("hdfs://localhost:9000/user/hdoop/input/3gram.txt"));
+            FileOutputFormat.setOutputPath(job, new Path("hdfs://localhost:9000/user/hdoop/output/out3"));
+        }
+        else {
+            if (AWSApp.use_demo_3gram) {
+                FileInputFormat.addInputPath(job, new Path(AWSApp.baseURL + "/input/3gram.txt"));
+            } else {
+                job.setInputFormatClass(SequenceFileInputFormat.class); // Added to be able to parse s3_3gram correctly
+                job.setOutputFormatClass(SequenceFileOutputFormat.class); // Added to be able to parse s3_3gram correctly on the next step
+                FileInputFormat.addInputPath(job, new Path(AWSApp.s3_3gram));
+            }
+            FileOutputFormat.setOutputPath(job, new Path(AWSApp.baseURL + "/output/out3"));
+        }
         System.exit(job.waitForCompletion(true) ? 0 : 1);
     }
 

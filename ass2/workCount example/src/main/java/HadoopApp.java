@@ -12,8 +12,6 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 
-import java.io.IOException;
-
 public class HadoopApp extends Configured implements Tool{
     public static void main(String[] args) throws Exception {
         int res = ToolRunner.run(new Configuration(), new HadoopApp(),

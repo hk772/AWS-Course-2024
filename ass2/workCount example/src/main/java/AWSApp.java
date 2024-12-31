@@ -15,34 +15,65 @@ public class AWSApp {
     public static AmazonEC2 ec2;
     public static AmazonElasticMapReduce emr;
 
-    public static int numberOfInstances = 1;
+    public static int numberOfInstances = 3;
+    private static String region = "us-west-2";
+//    private static String region = "us-east-1";
+    private static String bucketName = "my-bucket-mevuzarot-2024-ass2";
+    private static String jarName = "Ass2.jar";
+    public static boolean use_demo_3gram = false;
+
+    public static String baseURL = "s3://" + bucketName;
+    public static String s3_3gram = "s3://datasets.elasticmapreduce/ngrams/books/20090715/heb-all/3gram/data";
+
 
     public static void main(String[]args){
         credentialsProvider = new ProfileCredentialsProvider();
         System.out.println("[INFO] Connecting to aws");
+//        System.out.println("ACCESS_KEY: " + credentialsProvider.getCredentials().getAWSAccessKeyId());
+//        System.out.println("SECRET_KEY: " + credentialsProvider.getCredentials().getAWSSecretKey());
         ec2 = AmazonEC2ClientBuilder.standard()
                 .withCredentials(credentialsProvider)
-                .withRegion("us-east-1")
+                .withRegion(region)
                 .build();
         S3 = AmazonS3ClientBuilder.standard()
                 .withCredentials(credentialsProvider)
-                .withRegion("us-east-1")
+                .withRegion(region)
                 .build();
         emr = AmazonElasticMapReduceClientBuilder.standard()
                 .withCredentials(credentialsProvider)
-                .withRegion("us-east-1")
+                .withRegion(region)
                 .build();
-        System.out.println( "list cluster");
-        System.out.println( emr.listClusters());
+        System.out.println("list cluster");
+        System.out.println(emr.listClusters());
 
         // Step 1
         HadoopJarStepConfig step1 = new HadoopJarStepConfig()
-                .withJar("s3://bucket163897429777/jars/WordCount.jar")
-                .withMainClass("Step1");
+                .withJar("s3://" + bucketName + "/" + jarName)
+                .withMainClass("WordCount3Gram");
 
         StepConfig stepConfig1 = new StepConfig()
-                .withName("Step1")
+                .withName("Job1")
                 .withHadoopJarStep(step1)
+                .withActionOnFailure("TERMINATE_JOB_FLOW");
+
+        // Step 2
+        HadoopJarStepConfig step2 = new HadoopJarStepConfig()
+                .withJar("s3://" + bucketName + "/" + jarName)
+                .withMainClass("CountPairs3Gram");
+
+        StepConfig stepConfig2 = new StepConfig()
+                .withName("Job2")
+                .withHadoopJarStep(step2)
+                .withActionOnFailure("TERMINATE_JOB_FLOW");
+
+        // Step 3
+        HadoopJarStepConfig step3 = new HadoopJarStepConfig()
+                .withJar("s3://" + bucketName + "/" + jarName)
+                .withMainClass("CalcProbs");
+
+        StepConfig stepConfig3 = new StepConfig()
+                .withName("Job3")
+                .withHadoopJarStep(step3)
                 .withActionOnFailure("TERMINATE_JOB_FLOW");
 
         //Job flow
@@ -50,17 +81,17 @@ public class AWSApp {
                 .withInstanceCount(numberOfInstances)
                 .withMasterInstanceType(InstanceType.M4Large.toString())
                 .withSlaveInstanceType(InstanceType.M4Large.toString())
-                .withHadoopVersion("2.9.2")
-                .withEc2KeyName("vockey")
+                .withHadoopVersion("3.4.0")
+//                .withEc2KeyName("vockey")
                 .withKeepJobFlowAliveWhenNoSteps(false)
-                .withPlacement(new PlacementType("us-east-1a"));
+                .withPlacement(new PlacementType(region + "a"));
 
         System.out.println("Set steps");
         RunJobFlowRequest runFlowRequest = new RunJobFlowRequest()
                 .withName("Map reduce project")
                 .withInstances(instances)
-                .withSteps(stepConfig1)
-                .withLogUri("s3://bucket163897429777/logs/")
+                .withSteps(stepConfig1, stepConfig2, stepConfig3)
+                .withLogUri("s3://" + bucketName + "/logs/")
                 .withServiceRole("EMR_DefaultRole")
                 .withJobFlowRole("EMR_EC2_DefaultRole")
                 .withReleaseLabel("emr-5.11.0");

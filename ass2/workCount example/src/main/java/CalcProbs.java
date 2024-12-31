@@ -3,13 +3,16 @@ import org.apache.hadoop.fs.*;
 import org.apache.hadoop.io.*;
 import org.apache.hadoop.mapreduce.*;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
 import java.io.*;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public class CalcProbs {
+    private static boolean isLocal = false;
 
     public static class MapperClass extends Mapper<LongWritable, Text, Job3Keys, Job3Val> {
         private final static IntWritable one = new IntWritable(1);
@@ -23,6 +26,11 @@ public class CalcProbs {
             // load file and create singles table
             String path = conf.get("stopwords");
             FileSystem fs = FileSystem.get(conf);
+            if (!isLocal) {
+                try {
+                    fs = FileSystem.get(new java.net.URI(AWSApp.baseURL), new Configuration());
+                } catch (URISyntaxException ignored) {};
+            }
 
             Path filePath = new Path(path);
 
@@ -48,10 +56,15 @@ public class CalcProbs {
 
         @Override
         public void map(LongWritable lineId, Text line, Context context) throws IOException,  InterruptedException {
+//            System.out.println("DEBUG: CalcProbs s3-3gram line: " + line.toString());
             // check if from out2 or from 3gram
             if (is3Gram(line.toString())) { // Tag "A"
                 String[] parts = line.toString().split("\t");
                 String[] words = parts[0].split(" ");
+                if (words.length < 3 || parts.length < 3) {
+                    System.out.println("DEBUG: Malformed 3gram line: " + line.toString());
+                    return;
+                }
                 String w1 = words[0];
                 String w2 = words[1];
                 String w3 = words[2];
@@ -67,8 +80,12 @@ public class CalcProbs {
                     context.write(new Job3Keys(w1Text, w2Text), new Job3Val(w3Text, new Text("A"), matchCountWritable));
                 }
             }
-            else{ // Tag "B"
+            else { // Tag "B"
                 String[] parts = line.toString().split("\t");
+                if (parts.length < 8) {
+                    System.out.println("DEBUG: Malformed 3gram line in CalcProb: " + line.toString());
+                    return;
+                }
                 String w1 = parts[0];
                 String w2 = parts[1];
                 String w3 = parts[2];
@@ -241,6 +258,12 @@ public class CalcProbs {
 
                 Path outputFilePath = new Path(CustomOutputFormat.getOutputPath(context), "part-" + context.getTaskAttemptID());
                 FileSystem fs = FileSystem.get(context.getConfiguration());
+                if (!isLocal) {
+                    try {
+                        fs = FileSystem.get(new java.net.URI(AWSApp.baseURL), new Configuration());
+                    } catch (URISyntaxException ignored) {};
+                }
+
                 FSDataOutputStream outStream = fs.create(outputFilePath, context);
                 out = outStream;
 //                try {
@@ -295,8 +318,12 @@ public class CalcProbs {
         System.out.println("[DEBUG] STEP 1 started!");
         System.out.println(args.length > 0 ? args[0] : "no args");
         Configuration conf = new Configuration();
-//        conf.set("job1Out", "hdfs://localhost:9000/user/hdoop/output/3gramsOut");
-        conf.set("stopwords", "hdfs://localhost:9000/user/hdoop/input/stopwords.txt");
+        if (isLocal) {
+            conf.set("stopwords", "hdfs://localhost:9000/user/hdoop/input/stopwords.txt");
+        }
+        else {
+            conf.set("stopwords", AWSApp.baseURL + "/input/stopwords.txt");
+        }
         Job job = Job.getInstance(conf, "CalcProbs");
         job.setJarByClass(CalcProbs.class);
         job.setMapperClass(MapperClass.class);
@@ -311,12 +338,21 @@ public class CalcProbs {
         job.setOutputValueClass(Text.class);
 
         job.setOutputFormatClass(CustomOutputFormat.class);
-
-        FileInputFormat.addInputPath(job, new Path("hdfs://localhost:9000/user/hdoop/input/3gram.txt"));
-        FileInputFormat.addInputPath(job, new Path("hdfs://localhost:9000/user/hdoop/output/out3/part-r-00000"));
-        CustomOutputFormat.setOutputPath(job, new Path("hdfs://localhost:9000/user/hdoop/output/outProbs"));
+        if (isLocal) {
+            FileInputFormat.addInputPath(job, new Path("hdfs://localhost:9000/user/hdoop/input/3gram.txt"));
+            FileInputFormat.addInputPath(job, new Path("hdfs://localhost:9000/user/hdoop/output/out3/part*"));
+            CustomOutputFormat.setOutputPath(job, new Path("hdfs://localhost:9000/user/hdoop/output/outProbs"));
+        }
+        else {
+            if (AWSApp.use_demo_3gram) {
+                FileInputFormat.addInputPath(job, new Path(AWSApp.baseURL + "/input/3gram.txt"));
+            } else {
+                job.setInputFormatClass(SequenceFileInputFormat.class); // Added to be able to parse s3_3gram correctly
+                FileInputFormat.addInputPath(job, new Path(AWSApp.s3_3gram));
+            }
+            FileInputFormat.addInputPath(job, new Path(AWSApp.baseURL + "/output/out3/part*"));
+            CustomOutputFormat.setOutputPath(job, new Path(AWSApp.baseURL + "/output/outProbs"));
+        }
         System.exit(job.waitForCompletion(true) ? 0 : 1);
     }
-
-
 }
