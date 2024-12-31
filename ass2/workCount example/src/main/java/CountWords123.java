@@ -45,7 +45,7 @@ public class CountWords123 {
     }
 
     public static class ReducerClass extends Reducer<Text,TextAndCountValue,Text,Text> {
-        FSDataOutputStream out;
+        FSDataOutputStream out; // out stream to print word counts to CalculateC0 - it will be used on the next Job
 
         @Override
         public void setup(Context context) throws IOException {
@@ -72,14 +72,25 @@ public class CountWords123 {
             for (TextAndCountValue value : values) {
                 String[] parts = value.getText().toString().split("\t");
                 String words = parts[0];
+                String[] wordsArray = words.split(" ");
+                String w1 = wordsArray[0];
+                String w2 = wordsArray[1];
+                String w3 = wordsArray[2];
+
                 String rest = parts[1];
-                context.write(new Text(words), new Text(rest + " " + sum));
-                // Also write to a side file that enters the Job that calculates C0 - CountTotalWords
-                writeLine(key.toString() + " " + sum);
+                if (key.toString().equals(w2)) {
+                    context.write(new Text(words), new Text(rest + " " + sum + " " + 0));
+                } else if (key.toString().equals(w3)) {
+                    context.write(new Text(words), new Text(rest + " " + 0 + " " + sum));
+                }
+                // else it equals w1, so we don't need to emit the line to the next stage
+
+                // Also write to a side file that enters the Job that calculates C0 - CalculateC0 (CountTotalWords)
+                writeCalculateC0Line(key.toString() + " " + sum);
             }
         }
 
-        private void writeLine(String line) throws IOException {
+        private void writeCalculateC0Line(String line) throws IOException {
             byte[] utf8Bytes = line.getBytes(StandardCharsets.UTF_8);
             out.write(utf8Bytes);
         }
