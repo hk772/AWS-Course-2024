@@ -19,7 +19,8 @@ public class CountWords123 {
     private static boolean isLocal = false;
     public static String CalculateC0Folder = "CalculateC0";
     private static String baseURL = "hdfs://localhost:9000/user/hdoop";
-    public static Path CalculateC0Path;
+    public static String CalculateC0LocalPath = baseURL + "/" + CalculateC0Folder;
+    public static String CalculateC0AppPath = AWSApp.baseURL + "/" + CalculateC0Folder;
 
     public static class MapperClass extends Mapper<LongWritable, Text, Text, TextAndCountValue> {
 
@@ -48,17 +49,17 @@ public class CountWords123 {
 
         @Override
         public void setup(Context context) throws IOException {
-            CalculateC0Path = new Path(baseURL + "/" + CalculateC0Folder, "part-" + context.getTaskAttemptID());
+            Path outputFilePath = new Path(CalculateC0LocalPath, "part-" + context.getTaskAttemptID());
             FileSystem fs = FileSystem.get(context.getConfiguration());
 
             if (!isLocal) {
-                CalculateC0Path = new Path(AWSApp.baseURL + "/" + CalculateC0Folder, "part-" + context.getTaskAttemptID());
+                outputFilePath = new Path(CalculateC0AppPath, "part-" + context.getTaskAttemptID());
                 try {
                     fs = FileSystem.get(new java.net.URI(AWSApp.baseURL), new Configuration());
                 } catch (URISyntaxException ignored) {};
             }
 
-            FSDataOutputStream outStream = fs.create(CalculateC0Path, context);
+            FSDataOutputStream outStream = fs.create(outputFilePath, context);
             out = outStream;
         }
 
