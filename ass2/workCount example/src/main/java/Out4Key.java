@@ -6,14 +6,14 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-public class Out3Key implements WritableComparable<Out3Key> {
+public class Out4Key implements WritableComparable<Out4Key> {
     private Text w1;
     private Text w2;
     private DoubleWritable prob;
 
-    public Out3Key() {}
+    public Out4Key() {}
 
-    public Out3Key(Text w1, Text w2, DoubleWritable doubleWritable) {
+    public Out4Key(Text w1, Text w2, DoubleWritable doubleWritable) {
         this.w1 = w1;
         this.w2 = w2;
         this.prob = doubleWritable;
@@ -21,7 +21,7 @@ public class Out3Key implements WritableComparable<Out3Key> {
 
 
     @Override
-    public int compareTo(Out3Key o) {
+    public int compareTo(Out4Key o) {
         String combined = w1.toString() + w2.toString();
         String combined2 = o.w1.toString() + o.w2.toString();
 

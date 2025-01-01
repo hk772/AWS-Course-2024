@@ -94,7 +94,7 @@ public class HadoopApp extends Configured implements Tool{
         job3.setReducerClass(CalcProbs.ReducerClass.class);
         job3.setMapOutputKeyClass(WordPairKey.class);
         job3.setMapOutputValueClass(Job3Val.class);
-        job3.setOutputKeyClass(Out3Key.class);
+        job3.setOutputKeyClass(Out4Key.class);
         job3.setOutputValueClass(Text.class);
         job3.setOutputFormatClass(CalcProbs.CustomOutputFormat.class);
         FileInputFormat.setInputPaths(job3, new Path(input3Path1));

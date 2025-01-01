@@ -10,6 +10,7 @@ public class TextPairAndCountValue implements Writable {
     private Text w;
     private LongWritable matchCount;
     private Text other;
+    private Text tag;
 
     public TextPairAndCountValue() {}
 
@@ -17,6 +18,14 @@ public class TextPairAndCountValue implements Writable {
         this.w = w;
         this.matchCount = matchCount;
         this.other = other;
+        this.tag = new Text("");
+    }
+
+    public void setTag(String tag) {
+        this.tag = new Text(tag);
+    }
+    public String getTag() {
+        return tag.toString();
     }
 
     @Override
@@ -24,6 +33,7 @@ public class TextPairAndCountValue implements Writable {
         out.writeUTF(w.toString());
         out.writeLong(matchCount.get());
         out.writeUTF(other.toString());
+        out.writeUTF(tag.toString());
     }
 
     @Override
@@ -31,6 +41,7 @@ public class TextPairAndCountValue implements Writable {
         w = new Text(in.readUTF());
         matchCount = new LongWritable(in.readLong());
         other = new Text(in.readUTF());
+        tag = new Text(in.readUTF());
     }
 
 

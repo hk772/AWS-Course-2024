@@ -113,7 +113,7 @@ public class CalcProbs {
     }
 
 
-    public static class ReducerClass extends Reducer<WordPairKey,Job3Val,Out3Key,Text> {
+    public static class ReducerClass extends Reducer<WordPairKey,Job3Val, Out4Key,Text> {
 
 
 
@@ -200,7 +200,7 @@ public class CalcProbs {
 //                        "Debug info: w3_str=%s, C1=%d, N1=%d, N2=%d, N3=%d, C2=%d, w1=%s, w2=%s, w3=%s, k2=%f, k3=%f, prob=%f",
 //                        w3_str, C1, N1, N2, N3, C2, w1, w2, w3, k2, k3, prob
 //                ));
-                context.write(new Out3Key(w1, w2, new DoubleWritable(prob)), w3);
+                context.write(new Out4Key(w1, w2, new DoubleWritable(prob)), w3);
 
             }
 
@@ -242,14 +242,14 @@ public class CalcProbs {
         }
     }
 
-    public static class CustomOutputFormat extends FileOutputFormat<Out3Key, Text> {
+    public static class CustomOutputFormat extends FileOutputFormat<Out4Key, Text> {
 
         @Override
-        public RecordWriter<Out3Key, Text> getRecordWriter(TaskAttemptContext context) throws IOException, InterruptedException {
+        public RecordWriter<Out4Key, Text> getRecordWriter(TaskAttemptContext context) throws IOException, InterruptedException {
             return new CustomRecordWriter(context);
         }
 
-        public static class CustomRecordWriter extends RecordWriter<Out3Key, Text> {
+        public static class CustomRecordWriter extends RecordWriter<Out4Key, Text> {
 
             private final DataOutputStream out;
 
@@ -274,7 +274,7 @@ public class CalcProbs {
             }
 
             @Override
-            public void write(Out3Key key, Text value) throws IOException, InterruptedException {
+            public void write(Out4Key key, Text value) throws IOException, InterruptedException {
                 // Format the output line as w1\tw2\tw3\tprob
 
                 String w1 = key.getW1().toString();
@@ -334,7 +334,7 @@ public class CalcProbs {
 
         job.setMapOutputKeyClass(WordPairKey.class);
         job.setMapOutputValueClass(Job3Val.class);
-        job.setOutputKeyClass(Out3Key.class);
+        job.setOutputKeyClass(Out4Key.class);
         job.setOutputValueClass(Text.class);
 
         job.setOutputFormatClass(CustomOutputFormat.class);
