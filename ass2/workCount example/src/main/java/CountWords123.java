@@ -19,8 +19,8 @@ public class CountWords123 {
     private static boolean isLocal = false;
     public static String CalculateC0Folder = "CalculateC0";
     private static String baseURL = "hdfs://localhost:9000/user/hdoop";
-    public static String CalculateC0LocalPath = baseURL + "/" + CalculateC0Folder;
-    public static String CalculateC0AppPath = AWSApp.baseURL + "/" + CalculateC0Folder;
+    public static String CalculateC0LocalPath = baseURL + "/output/" + CalculateC0Folder;
+    public static String CalculateC0AppPath = AWSApp.baseURL + "/output/" + CalculateC0Folder;
 
     public static class MapperClass extends Mapper<LongWritable, Text, Text, TextAndCountValue> {
 
@@ -91,6 +91,7 @@ public class CountWords123 {
         }
 
         private void writeCalculateC0Line(String line) throws IOException {
+            line = line + "\n";
             byte[] utf8Bytes = line.getBytes(StandardCharsets.UTF_8);
             out.write(utf8Bytes);
         }

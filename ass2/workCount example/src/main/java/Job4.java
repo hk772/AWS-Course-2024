@@ -11,11 +11,9 @@ import java.io.*;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
 
 public class Job4 {
-    private static boolean isLocal = true;
+    private static boolean isLocal = false;
     private static String baseURL = "hdfs://localhost:9000/user/hdoop";
 
 
@@ -51,12 +49,16 @@ public class Job4 {
         @Override
         public void setup(Reducer.Context context) throws IOException {
             Path c0Path = new Path(Job3.C0LocalPath);
-            if (!isLocal) {
-                c0Path = new Path(Job3.C0AppPath);
-            }
             Configuration conf = context.getConfiguration();
+
             // load file
             FileSystem fs = FileSystem.get(conf);
+            if (!isLocal) {
+                c0Path = new Path(Job3.C0AppPath);
+                try {
+                    fs = FileSystem.get(new java.net.URI(AWSApp.baseURL), new Configuration());
+                } catch (URISyntaxException ignored) {};
+            }
             try {
                 // List the files in the directory
                 FileStatus[] fileStatuses = fs.listStatus(c0Path);
@@ -96,16 +98,28 @@ public class Job4 {
         public void reduce(WordPairKey key, Iterable<FinalMapVal> values, Context context) throws IOException,  InterruptedException {
             HashMap<String, Long[]> H = new HashMap<>();
             for (FinalMapVal val : values) {
-                if (!H.containsKey(val.getW3())){
+                if (!H.containsKey(val.getW3())) {
                     H.put(val.getW3(), new Long[]{val.getMatchCount(), val.getCount12(), val.getCount23(), val.getCount2(), val.getCount3()});
                 }
-                else{
-                    long old12 = H.get(val.getW3())[1];
-                    long old23 = H.get(val.getW3())[2];
-                    long old2 = H.get(val.getW3())[3];
-                    long old3 = H.get(val.getW3())[4];
-                    H.put(val.getW3(), new Long[]{val.getMatchCount(), old12 + val.getCount12(),
-                            old23 + val.getCount23(), old2 + val.getCount2(), old3 + val.getCount3()});
+                else {
+//                    long count12 = H.get(val.getW3())[1];
+//                    if (count12 == 0) {
+//                        count12 = val.getCount12();
+//                    }
+//                    long count23 = H.get(val.getW3())[2];
+//                    if (count23 == 0) {
+//                        count23 = val.getCount23();
+//                    }
+                    long count2 = H.get(val.getW3())[3];
+                    if (count2 == 0) {
+                        count2 = val.getCount2();
+                    }
+                    long count3 = H.get(val.getW3())[4];
+                    if (count3 == 0) {
+                        count3 = val.getCount3();
+                    }
+//                    H.put(val.getW3(), new Long[]{val.getMatchCount(),count12,count23,count2,count3});
+                    H.put(val.getW3(), new Long[]{val.getMatchCount(), val.getCount12(),val.getCount23(),count2,count3});
                 }
             }
 
@@ -123,6 +137,8 @@ public class Job4 {
 
                 double prob = k3 * ((double) N3 / C2) + (1 - k3) * k2 * ((double) N2 / C1) + (1 - k3) * (1 - k2) * ((double) N1 / C0);
                 Out4Key out4Key = new Out4Key(key.getW1(), key.getW2(), new DoubleWritable(prob));
+                System.out.println(String.format("DEBUG: Reducer calcs: <N1:%d N2:%d N3:%d C1:%d C2:%d C0:%d k2:%f k3:%f prob:%f>: ",N1,N2,N3,C1,C2,C0,k2,k3,prob));
+                System.out.println("DEBUG: Reducer writing: " + out4Key.toString() + " with w3: " + w3);
                 context.write(out4Key, new Text(w3));
             }
 
@@ -134,16 +150,28 @@ public class Job4 {
         public void reduce(WordPairKey key, Iterable<FinalMapVal> values, Context context) throws IOException,  InterruptedException {
             HashMap<String, Long[]> H = new HashMap<>();
             for (FinalMapVal val : values) {
-                if (!H.containsKey(val.getW3())){
+                if (!H.containsKey(val.getW3())) {
                     H.put(val.getW3(), new Long[]{val.getMatchCount(), val.getCount12(), val.getCount23(), val.getCount2(), val.getCount3()});
                 }
-                else{
-                    long old12 = H.get(val.getW3())[1];
-                    long old23 = H.get(val.getW3())[2];
-                    long old2 = H.get(val.getW3())[3];
-                    long old3 = H.get(val.getW3())[4];
-                    H.put(val.getW3(), new Long[]{val.getMatchCount(), old12 + val.getCount12(),
-                            old23 + val.getCount23(), old2 + val.getCount2(), old3 + val.getCount3()});
+                else {
+//                    long count12 = H.get(val.getW3())[1];
+//                    if (count12 == 0) {
+//                        count12 = val.getCount12();
+//                    }
+//                    long count23 = H.get(val.getW3())[2];
+//                    if (count23 == 0) {
+//                        count23 = val.getCount23();
+//                    }
+                    long count2 = H.get(val.getW3())[3];
+                    if (count2 == 0) {
+                        count2 = val.getCount2();
+                    }
+                    long count3 = H.get(val.getW3())[4];
+                    if (count3 == 0) {
+                        count3 = val.getCount3();
+                    }
+//                    H.put(val.getW3(), new Long[]{val.getMatchCount(),count12,count23,count2,count3});
+                    H.put(val.getW3(), new Long[]{val.getMatchCount(),val.getCount12(),val.getCount23(),count2,count3});
                 }
             }
 
@@ -157,15 +185,15 @@ public class Job4 {
                 LongWritable count3 = new LongWritable(counts[4]);
 
                 FinalMapVal val = new FinalMapVal(new Text(w3), match_count, count12, count23, count2, count3);
-
+                System.out.println("DEBUG: Combiner writing: " + key.toString() + " " + val.toString());
                 context.write(key, val);
             }
         }
     }
 
-    public static class PartitionerClass extends Partitioner<Text, TextAndCountValue> {
+    public static class PartitionerClass extends Partitioner<WordPairKey, FinalMapVal> {
         @Override
-        public int getPartition(Text key, TextAndCountValue value, int numPartitions) {
+        public int getPartition(WordPairKey key, FinalMapVal value, int numPartitions) {
             return (key.hashCode() & Integer.MAX_VALUE) % numPartitions;
         }
     }
@@ -174,7 +202,7 @@ public class Job4 {
 
         @Override
         public RecordWriter<Out4Key, Text> getRecordWriter(TaskAttemptContext context) throws IOException, InterruptedException {
-            return new CalcProbs.CustomOutputFormat.CustomRecordWriter(context);
+            return new CustomOutputFormat.CustomRecordWriter(context);
         }
 
         public static class CustomRecordWriter extends RecordWriter<Out4Key, Text> {
@@ -184,7 +212,7 @@ public class Job4 {
             public CustomRecordWriter(TaskAttemptContext context) throws IOException {
                 // Initialize writer (this would be to a file in the HDFS output)
 
-                Path outputFilePath = new Path(CalcProbs.CustomOutputFormat.getOutputPath(context), "part-" + context.getTaskAttemptID());
+                Path outputFilePath = new Path(CustomOutputFormat.getOutputPath(context), "part-" + context.getTaskAttemptID());
                 FileSystem fs = FileSystem.get(context.getConfiguration());
                 if (!isLocal) {
                     try {
@@ -239,11 +267,11 @@ public class Job4 {
 
         if (isLocal) {
             FileInputFormat.addInputPath(job, new Path("hdfs://localhost:9000/user/hdoop/output/out2/part*"));
-            FileOutputFormat.setOutputPath(job, new Path("hdfs://localhost:9000/user/hdoop/output/out4"));
+            CustomOutputFormat.setOutputPath(job, new Path("hdfs://localhost:9000/user/hdoop/output/out4"));
         }
         else {
             FileInputFormat.addInputPath(job, new Path(AWSApp.baseURL + "/output/out2/part*"));
-            FileOutputFormat.setOutputPath(job, new Path(AWSApp.baseURL + "/output/out4"));
+            CustomOutputFormat.setOutputPath(job, new Path(AWSApp.baseURL + "/output/out4"));
         }
         System.exit(job.waitForCompletion(true) ? 0 : 1);
     }

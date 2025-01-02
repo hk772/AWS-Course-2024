@@ -28,7 +28,7 @@ public class FinalMapVal implements Writable {
 
     @Override
     public void write(DataOutput out) throws IOException {
-        w3.write(out);
+        out.writeUTF(w3.toString());
         out.writeLong(matchCount.get());
         out.writeLong(count12.get());
         out.writeLong(count23.get());
@@ -38,7 +38,7 @@ public class FinalMapVal implements Writable {
 
     @Override
     public void readFields(DataInput in) throws IOException {
-        w3 = new Text();
+        w3 = new Text(in.readUTF());
         matchCount = new LongWritable(in.readLong());
         count12 = new LongWritable(in.readLong());
         count23 = new LongWritable(in.readLong());

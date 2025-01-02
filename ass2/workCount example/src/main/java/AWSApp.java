@@ -16,13 +16,13 @@ public class AWSApp {
     public static AmazonElasticMapReduce emr;
 
     public static int numberOfInstances = 3;
-    private static String region = "us-west-2";
-//    private static String region = "us-east-1";
-    private static String bucketName = "my-bucket-mevuzarot-2024-ass2";
+    public static String region = "us-west-2";
+//    public static String region = "us-east-1";
+    public static String bucketName = "my-bucket-mevuzarot-2024-ass2";
     private static String jarName = "Ass2.jar";
     public static boolean use_demo_3gram = false;
 
-    public static String baseURL = "s3://" + bucketName;
+    public static String baseURL = "s3a://" + bucketName;
     public static String s3_3gram = "s3://datasets.elasticmapreduce/ngrams/books/20090715/heb-all/3gram/data";
 
 
@@ -46,10 +46,20 @@ public class AWSApp {
         System.out.println("list cluster");
         System.out.println(emr.listClusters());
 
+        // Step 0
+        HadoopJarStepConfig step0 = new HadoopJarStepConfig()
+                .withJar("s3://" + bucketName + "/" + jarName)
+                .withMainClass("Job0");
+
+        StepConfig stepConfig0 = new StepConfig()
+                .withName("Job0")
+                .withHadoopJarStep(step0)
+                .withActionOnFailure("TERMINATE_JOB_FLOW");
+
         // Step 1
         HadoopJarStepConfig step1 = new HadoopJarStepConfig()
                 .withJar("s3://" + bucketName + "/" + jarName)
-                .withMainClass("WordCount3Gram");
+                .withMainClass("Job1");
 
         StepConfig stepConfig1 = new StepConfig()
                 .withName("Job1")
@@ -59,7 +69,7 @@ public class AWSApp {
         // Step 2
         HadoopJarStepConfig step2 = new HadoopJarStepConfig()
                 .withJar("s3://" + bucketName + "/" + jarName)
-                .withMainClass("CountPairs3Gram");
+                .withMainClass("Job2");
 
         StepConfig stepConfig2 = new StepConfig()
                 .withName("Job2")
@@ -69,11 +79,21 @@ public class AWSApp {
         // Step 3
         HadoopJarStepConfig step3 = new HadoopJarStepConfig()
                 .withJar("s3://" + bucketName + "/" + jarName)
-                .withMainClass("CalcProbs");
+                .withMainClass("Job3");
 
         StepConfig stepConfig3 = new StepConfig()
                 .withName("Job3")
                 .withHadoopJarStep(step3)
+                .withActionOnFailure("TERMINATE_JOB_FLOW");
+
+        // Step 4
+        HadoopJarStepConfig step4 = new HadoopJarStepConfig()
+                .withJar("s3://" + bucketName + "/" + jarName)
+                .withMainClass("Job4");
+
+        StepConfig stepConfig4 = new StepConfig()
+                .withName("Job4")
+                .withHadoopJarStep(step4)
                 .withActionOnFailure("TERMINATE_JOB_FLOW");
 
         //Job flow
@@ -90,7 +110,8 @@ public class AWSApp {
         RunJobFlowRequest runFlowRequest = new RunJobFlowRequest()
                 .withName("Map reduce project")
                 .withInstances(instances)
-                .withSteps(stepConfig1, stepConfig2, stepConfig3)
+//                .withSteps(stepConfig0, stepConfig1, stepConfig2, stepConfig3, stepConfig4)
+                .withSteps(stepConfig4)
                 .withLogUri("s3://" + bucketName + "/logs/")
                 .withServiceRole("EMR_DefaultRole")
                 .withJobFlowRole("EMR_EC2_DefaultRole")

@@ -12,7 +12,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public class Job0 {
-    private static boolean isLocal = true;
+    private static boolean isLocal = false;
 
     public static class MapperClass extends Mapper<LongWritable, Text, WordPairKey, TextAndCountValue> {
         private HashSet<String> stopSet;

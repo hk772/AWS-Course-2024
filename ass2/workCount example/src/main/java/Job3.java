@@ -1,6 +1,4 @@
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FSDataOutputStream;
-import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.*;
 import org.apache.hadoop.mapreduce.Job;
@@ -11,11 +9,9 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
 import java.io.*;
-import java.net.URISyntaxException;
-import java.nio.charset.StandardCharsets;
 
 public class Job3 {
-    private static boolean isLocal = true;
+    private static boolean isLocal = false;
     private static String baseURL = "hdfs://localhost:9000/user/hdoop";
 
     public static String C0LocalPath ="hdfs://localhost:9000/user/hdoop/output/C0";
@@ -58,9 +54,9 @@ public class Job3 {
         }
     }
 
-    public static class PartitionerClass extends Partitioner<Text, TextAndCountValue> {
+    public static class PartitionerClass extends Partitioner<Text, LongWritable> {
         @Override
-        public int getPartition(Text key, TextAndCountValue value, int numPartitions) {
+        public int getPartition(Text key, LongWritable value, int numPartitions) {
             return (key.hashCode() & Integer.MAX_VALUE) % numPartitions;
         }
     }
@@ -76,12 +72,12 @@ public class Job3 {
         job.setCombinerClass(CombinerClass.class);
         job.setReducerClass(ReducerClass.class);
         job.setMapOutputKeyClass(Text.class);
-        job.setMapOutputValueClass(TextAndCountValue.class);
+        job.setMapOutputValueClass(LongWritable.class);
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(Text.class);
 
         if (isLocal) {
-            FileInputFormat.addInputPath(job, new Path(Job2.CalculateC0LocalPath));
+            FileInputFormat.addInputPath(job, new Path(Job2.CalculateC0LocalPath + "/part*"));
             FileOutputFormat.setOutputPath(job, new Path(C0LocalPath));
         }
         else {

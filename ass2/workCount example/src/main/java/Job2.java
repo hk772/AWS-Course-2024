@@ -4,23 +4,23 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapreduce.Job;
-import org.apache.hadoop.mapreduce.Mapper;
-import org.apache.hadoop.mapreduce.Partitioner;
-import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.*;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
 import java.io.*;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
+import java.util.AbstractMap;
+import java.util.HashMap;
+import java.util.Map;
 
 public class Job2 {
-    private static boolean isLocal = true;
+    private static boolean isLocal = false;
     public static String CalculateC0Folder = "CalculateC0";
     private static String baseURL = "hdfs://localhost:9000/user/hdoop";
-    public static String CalculateC0LocalPath = baseURL + "/" + CalculateC0Folder;
-    public static String CalculateC0AppPath = AWSApp.baseURL + "/" + CalculateC0Folder;
+    public static String CalculateC0LocalPath = baseURL + "/output/" + CalculateC0Folder;
+    public static String CalculateC0AppPath = AWSApp.baseURL + "/output/" + CalculateC0Folder;
 
     private static String tagWord1 = "One";
     private static String tagWord2 = "Two";
@@ -67,7 +67,7 @@ public class Job2 {
             if (!isLocal) {
                 outputFilePath = new Path(CalculateC0AppPath, "part-" + context.getTaskAttemptID());
                 try {
-                    fs = FileSystem.get(new java.net.URI(AWSApp.baseURL), new Configuration());
+                    fs = FileSystem.get(new java.net.URI("s3a://" + AWSApp.bucketName), new Configuration());
                 } catch (URISyntaxException ignored) {};
             }
 
@@ -78,37 +78,52 @@ public class Job2 {
         @Override
         public void reduce(Text key, Iterable<TextAndCountValue> values, Context context) throws IOException,  InterruptedException {
             // TODO : reduce with Hmap from multiple same 3gram emits to 1
+            HashMap<String, Map.Entry<Long[],String>> H = new HashMap<>(); // from 3gram to the 3 counts and tag (pair=Map.Entry)
             long sum = 0;
             for (TextAndCountValue value : values) {
                 sum += value.getMatchCount().get();
+                Text line = value.getText();
+                String[] parts = line.toString().split("\t");
+                String gram = parts[0];
+                String[] counts = parts[1].split(" ");
+                long match_count = Long.parseLong(counts[0]);
+                long count12 = Long.parseLong(counts[1]);
+                long count23 = Long.parseLong(counts[2]);
+                if (!H.containsKey(gram)) {
+                    H.put(gram, new AbstractMap.SimpleEntry<>(new Long[]{match_count,count12,count23},value.getTag()));
+                }
+                else {
+                    if (count12 == 0) {
+                        count12 = H.get(gram).getKey()[1];
+                    }
+                    if (count23 == 0) {
+                        count23 = H.get(gram).getKey()[2];
+                    }
+                    H.put(gram, new AbstractMap.SimpleEntry<>(new Long[]{match_count,count12,count23},value.getTag()));
+                }
             }
-            // from previous job emited each 3gram twice => devide by 2
             sum = sum / 2;
-            for (TextAndCountValue value : values) {
-                // Also write to a side file that enters the Job that calculates C0 - CalculateC0 (CountTotalWords)
-                writeCalculateC0Line(key.toString() + " " + sum);
-                if (value.getTag().equals(tagWord1)) {
-                    return;
+            // Also write to a side file that enters the Job that calculates C0 - CalculateC0 (CountTotalWords)
+            writeCalculateC0Line(key.toString() + " " + sum);
+
+            for (String gram : H.keySet()) {
+                Long[] counts = H.get(gram).getKey();
+                String tag = H.get(gram).getValue();
+
+                if (tag.equals(tagWord1)) {
+                    continue;
                 }
 
-                String[] parts = value.getText().toString().split("\t");
-                String gram = parts[0];
-                String[] words = gram.split(" ");
-                String w1 = words[0];
-                String w2 = words[1];
-                String w3 = words[2];
+                long match_count = counts[0];
+                long count12 = counts[1];
+                long count23 = counts[2];
 
-                String[] counts = parts[1].split(" ");
-                String match_count = counts[0];
-                String count12 = counts[1];
-                String count23 = counts[2];
-
-                Text newKey = new Text(w1 + " " + w2 + " " + w3);
+                Text newKey = new Text(gram);
                 Text newValue = new Text("");
-                if (value.getTag().equals(tagWord2)){
+                if (tag.equals(tagWord2)){
                     newValue = new Text(match_count + " " + count12 + " " + count23 + " " + sum + " 0");
                 }
-                else if (value.getTag().equals(tagWord3)){
+                else if (tag.equals(tagWord3)){
                     newValue = new Text(match_count + " " + count12 + " " + count23 + " 0 " + sum);
                 }
                 context.write(newKey, newValue);
@@ -116,8 +131,17 @@ public class Job2 {
         }
 
         private void writeCalculateC0Line(String line) throws IOException {
+            System.out.println("DEBUG: Attempting to write the line to " + CalculateC0AppPath + ": " + line);
+            line = line + "\n";
             byte[] utf8Bytes = line.getBytes(StandardCharsets.UTF_8);
             out.write(utf8Bytes);
+        }
+
+        @Override
+        public void cleanup(Context context) throws IOException {
+            if (out != null) {
+                out.close();  // Ensure the stream is closed to flush and complete file writing
+            }
         }
     }
 
