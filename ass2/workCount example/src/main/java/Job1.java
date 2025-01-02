@@ -30,14 +30,14 @@ public class Job1 {
             Text w1Text = new Text(w1);
             Text w2Text = new Text(w2);
             Text w3Text = new Text(w3);
-            LongWritable matchCountWritable = new LongWritable(Long.parseLong(match_count));
+            long matchCount = Long.parseLong(match_count);
 
             WordPairKey key1 = new WordPairKey(w1Text, w2Text);
-            TextPairAndCountValue value1 = new TextPairAndCountValue(w3Text, matchCountWritable, new Text(""));
+            TextPairAndCountValue value1 = new TextPairAndCountValue(w3Text, new LongWritable(matchCount), new Text(""));
             context.write(key1, value1);
 
             WordPairKey key2 = new WordPairKey(w2Text, w3Text);
-            TextPairAndCountValue value2 = new TextPairAndCountValue(w1Text, matchCountWritable, new Text(""));
+            TextPairAndCountValue value2 = new TextPairAndCountValue(w1Text, new LongWritable(matchCount), new Text(""));
             value2.setTag(tag_swapped);
             context.write(key2, value2);
         }
@@ -48,25 +48,25 @@ public class Job1 {
         @Override
         public void reduce(WordPairKey key, Iterable<TextPairAndCountValue> vals, Context context) throws IOException,  InterruptedException {
             long countPair = 0;
-            HashMap<String,TextPairAndCountValue> H = new HashMap<>(); // could also store long+tag instead of this object
+            HashMap<WordPairKey,Long> H = new HashMap<>(); // from w3+tag to match_count, could also store long+tag instead of this object
             for (TextPairAndCountValue val : vals) {
                 LongWritable matchCount = val.getMatchCount();
                 countPair += matchCount.get();
-                H.put(val.getW().toString(), val); // word 3 should be unique at this step
+                H.put(new WordPairKey(val.getW(),new Text(val.getTag())), matchCount.get()); // word 3 should be unique at this step
             }
-            for (Map.Entry<String,TextPairAndCountValue> entry : H.entrySet()) {
-                String w = entry.getKey();
-                TextPairAndCountValue val = entry.getValue();
-                if (!val.getTag().equals(tag_swapped)){
+            for (Map.Entry<WordPairKey,Long> entry : H.entrySet()) {
+                String w = entry.getKey().getW1().toString();
+                String tag = entry.getKey().getW2().toString();
+                long val = entry.getValue();
+                if (!tag.equals(tag_swapped)) {
                     Text newKey = new Text(key.getW1().toString() + " " + key.getW2().toString() + " " + w);
-                    Text value = new Text(val.getMatchCount() + " " + countPair + " 0");
-//                    System.out.println("DEBUG: WRITING IN REDUCE: " + newKey.toString() + "\t" + value.toString());
+                    Text value = new Text(val + " " + countPair + " 0");
+                    System.out.println("DEBUG: WRITING IN REDUCE: " + newKey.toString() + "\t" + value.toString());
                     context.write(newKey, value);
-                }
-                else {
+                } else {
                     Text newKey = new Text(w + " " + key.getW1().toString() + " " + key.getW2().toString());
-                    Text value = new Text(val.getMatchCount() + " 0 " + countPair);
-//                    System.out.println("DEBUG: WRITING IN REDUCE: " + newKey.toString() + "\t" + value.toString());
+                    Text value = new Text(val + " 0 " + countPair);
+                    System.out.println("DEBUG: WRITING IN REDUCE: " + newKey.toString() + "\t" + value.toString());
                     context.write(newKey, value);
                 }
             }

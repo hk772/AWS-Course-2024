@@ -1,0 +1,49 @@
+2025-01-02T10:17:44.323Z INFO Fetching file '/var/lib/aws/emr/provision-node'
+2025-01-02T10:17:44.349Z INFO startExec '/var/lib/aws/emr/provision-node --no-repo-provision'
+2025-01-02T10:17:44.350Z INFO Environment:
+  PATH=/sbin:/usr/sbin:/bin:/usr/bin:/usr/local/sbin:/opt/aws/bin
+  LESS_TERMCAP_md=[01;38;5;208m
+  LESS_TERMCAP_me=[0m
+  HISTCONTROL=ignoredups
+  LESS_TERMCAP_mb=[01;31m
+  AWS_AUTO_SCALING_HOME=/opt/aws/apitools/as
+  UPSTART_JOB=rc
+  LESS_TERMCAP_se=[0m
+  HISTSIZE=1000
+  JAVA_HOME=/etc/alternatives/jre
+  AWS_DEFAULT_REGION=us-west-2
+  AWS_ELB_HOME=/opt/aws/apitools/elb
+  LESS_TERMCAP_us=[04;38;5;111m
+  EC2_HOME=/opt/aws/apitools/ec2
+  TERM=linux
+  runlevel=3
+  LANG=en_US.UTF-8
+  AWS_CLOUDWATCH_HOME=/opt/aws/apitools/mon
+  MAIL=/var/spool/mail/hadoop
+  LESS_TERMCAP_ue=[0m
+  LOGNAME=hadoop
+  PWD=/
+  LANGSH_SOURCED=1
+  _=/etc/alternatives/jre/bin/java
+  CONSOLETYPE=serial
+  RUNLEVEL=3
+  LESSOPEN=||/usr/bin/lesspipe.sh %s
+  previous=N
+  UPSTART_EVENTS=runlevel
+  AWS_PATH=/opt/aws
+  USER=hadoop
+  UPSTART_INSTANCE=
+  PREVLEVEL=N
+  PYTHON_INSTALL_LAYOUT=amzn
+  HOSTNAME=ip-172-31-41-98
+  EC2_AMITOOL_HOME=/opt/aws/amitools/ec2
+  SHLVL=5
+  HOME=/home/hadoop
+2025-01-02T10:17:44.350Z INFO redirectOutput to /mnt/var/log/provision-node/be263a30-e553-497b-9aef-a09eb0bcd70b/stdout
+2025-01-02T10:17:44.350Z INFO redirectError to /mnt/var/log/provision-node/be263a30-e553-497b-9aef-a09eb0bcd70b/stderr
+2025-01-02T10:17:44.351Z INFO Working dir /mnt/var/lib/provision-node/be263a30-e553-497b-9aef-a09eb0bcd70b
+2025-01-02T10:17:44.373Z INFO ProcessRunner started child process : /var/lib/aws/emr/provision-node --no-repo-provi...
+2025-01-02T10:17:44.373Z INFO Synchronously wait child process to complete : /var/lib/aws/emr/provision-node --no-repo-provi...
+2025-01-02T10:18:14.375Z INFO waitProcessCompletion ended with exit code 0 : /var/lib/aws/emr/provision-node --no-repo-provi...
+2025-01-02T10:18:14.376Z INFO total process run time: 30 seconds
+2025-01-02T10:18:14.376Z INFO Execution succeeded

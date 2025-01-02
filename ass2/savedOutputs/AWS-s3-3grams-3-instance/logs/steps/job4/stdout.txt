@@ -1,0 +1,2 @@
+[DEBUG] STEP 1 started!
+no args

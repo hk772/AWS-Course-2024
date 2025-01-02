@@ -11,9 +11,7 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import java.io.*;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
-import java.util.AbstractMap;
 import java.util.HashMap;
-import java.util.Map;
 
 public class Job2 {
     private static boolean isLocal = false;
@@ -77,8 +75,7 @@ public class Job2 {
 
         @Override
         public void reduce(Text key, Iterable<TextAndCountValue> values, Context context) throws IOException,  InterruptedException {
-            // TODO : reduce with Hmap from multiple same 3gram emits to 1
-            HashMap<String, Map.Entry<Long[],String>> H = new HashMap<>(); // from 3gram to the 3 counts and tag (pair=Map.Entry)
+            HashMap<WordPairKey, Long[]> H = new HashMap<>(); // from 3gram+tag to the 3 counts
             long sum = 0;
             for (TextAndCountValue value : values) {
                 sum += value.getMatchCount().get();
@@ -89,26 +86,29 @@ public class Job2 {
                 long match_count = Long.parseLong(counts[0]);
                 long count12 = Long.parseLong(counts[1]);
                 long count23 = Long.parseLong(counts[2]);
-                if (!H.containsKey(gram)) {
-                    H.put(gram, new AbstractMap.SimpleEntry<>(new Long[]{match_count,count12,count23},value.getTag()));
+                WordPairKey gramAndTag = new WordPairKey(new Text(gram), new Text(value.getTag()));
+                if (!H.containsKey(gramAndTag)) {
+                    H.put(gramAndTag, new Long[]{match_count,count12,count23});
                 }
                 else {
-                    if (count12 == 0) {
-                        count12 = H.get(gram).getKey()[1];
+                    if (count12 != 0) {
+                        H.get(gramAndTag)[1] = count12;
                     }
-                    if (count23 == 0) {
-                        count23 = H.get(gram).getKey()[2];
+                    if (count23 != 0) {
+                        H.get(gramAndTag)[2] = count23;
                     }
-                    H.put(gram, new AbstractMap.SimpleEntry<>(new Long[]{match_count,count12,count23},value.getTag()));
                 }
             }
             sum = sum / 2;
             // Also write to a side file that enters the Job that calculates C0 - CalculateC0 (CountTotalWords)
             writeCalculateC0Line(key.toString() + " " + sum);
+//            System.out.println("DEBUG: writing to output: " + key.toString() + " with " + sum);
 
-            for (String gram : H.keySet()) {
-                Long[] counts = H.get(gram).getKey();
-                String tag = H.get(gram).getValue();
+            for (WordPairKey gramAndTag : H.keySet()) {
+                String gram = gramAndTag.getW1().toString();
+                String tag = gramAndTag.getW2().toString();
+                Long[] counts = H.get(gramAndTag);
+//                System.out.println("DEBUG: current gram,tag,Long[] are: <" + gram + "," + tag + "," + Arrays.toString(counts));
 
                 if (tag.equals(tagWord1)) {
                     continue;
@@ -127,11 +127,12 @@ public class Job2 {
                     newValue = new Text(match_count + " " + count12 + " " + count23 + " 0 " + sum);
                 }
                 context.write(newKey, newValue);
+//                System.out.println("DEBUG: writing to next job: " + gram + "," + newValue.toString());
             }
         }
 
         private void writeCalculateC0Line(String line) throws IOException {
-            System.out.println("DEBUG: Attempting to write the line to " + CalculateC0AppPath + ": " + line);
+//            System.out.println("DEBUG: Attempting to write the line to " + CalculateC0AppPath + ": " + line);
             line = line + "\n";
             byte[] utf8Bytes = line.getBytes(StandardCharsets.UTF_8);
             out.write(utf8Bytes);
@@ -148,7 +149,7 @@ public class Job2 {
     public static class PartitionerClass extends Partitioner<Text, TextAndCountValue> {
         @Override
         public int getPartition(Text key, TextAndCountValue value, int numPartitions) {
-            return (key.hashCode() & Integer.MAX_VALUE) % numPartitions;
+            return (key.toString().hashCode() & Integer.MAX_VALUE) % numPartitions;
         }
     }
 
@@ -156,7 +157,7 @@ public class Job2 {
         System.out.println("[DEBUG] STEP 1 started!");
         System.out.println(args.length > 0 ? args[0] : "no args");
         Configuration conf = new Configuration();
-        Job job = Job.getInstance(conf, "CountWords123");
+        Job job = Job.getInstance(conf, "Job2");
         job.setJarByClass(CountWords123.class);
         job.setMapperClass(MapperClass.class);
         job.setPartitionerClass(PartitionerClass.class);

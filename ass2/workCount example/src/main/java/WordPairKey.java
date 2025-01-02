@@ -52,6 +52,18 @@ public class WordPairKey implements WritableComparable<WordPairKey> {
         String combined = w1.toString() + w2.toString();
         return combined.hashCode();
     }
+
+    @Override
+    public boolean equals(Object other){
+        if (this == other) {
+            return true;
+        }
+        if (other == null || getClass() != other.getClass()) {
+            return false;
+        }
+        WordPairKey o = (WordPairKey)other;
+        return w1.toString().equals(o.w1.toString()) && w2.toString().equals(o.w2.toString());
+    }
 }
 
 

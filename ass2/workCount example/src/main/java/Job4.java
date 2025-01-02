@@ -102,24 +102,14 @@ public class Job4 {
                     H.put(val.getW3(), new Long[]{val.getMatchCount(), val.getCount12(), val.getCount23(), val.getCount2(), val.getCount3()});
                 }
                 else {
-//                    long count12 = H.get(val.getW3())[1];
-//                    if (count12 == 0) {
-//                        count12 = val.getCount12();
-//                    }
-//                    long count23 = H.get(val.getW3())[2];
-//                    if (count23 == 0) {
-//                        count23 = val.getCount23();
-//                    }
-                    long count2 = H.get(val.getW3())[3];
-                    if (count2 == 0) {
-                        count2 = val.getCount2();
+                    long count2 = val.getCount2();
+                    if (count2 != 0) {
+                        H.get(val.getW3())[3] = count2;
                     }
-                    long count3 = H.get(val.getW3())[4];
-                    if (count3 == 0) {
-                        count3 = val.getCount3();
+                    long count3 = val.getCount3();
+                    if (count3 != 0) {
+                        H.get(val.getW3())[4] = count3;
                     }
-//                    H.put(val.getW3(), new Long[]{val.getMatchCount(),count12,count23,count2,count3});
-                    H.put(val.getW3(), new Long[]{val.getMatchCount(), val.getCount12(),val.getCount23(),count2,count3});
                 }
             }
 
@@ -135,7 +125,21 @@ public class Job4 {
                 double k2 = ((Math.log(N2+1) + 1) / (Math.log(N2+1) + 2));
                 double k3 = ((Math.log(N3+1) + 1) / (Math.log(N3+1) + 2));
 
-                double prob = k3 * ((double) N3 / C2) + (1 - k3) * k2 * ((double) N2 / C1) + (1 - k3) * (1 - k2) * ((double) N1 / C0);
+//                double prob = k3 * ((double) N3 / C2) + (1 - k3) * k2 * ((double) N2 / C1) + (1 - k3) * (1 - k2) * ((double) N1 / C0);
+                double part1 = 0;
+                if (C2 != 0)
+                    part1 = k3 * ((double) N3 /C2);
+
+                double part2 = 0;
+                if (C1 != 0)
+                    part2 = (1 - k3) * k2 * ((double) N2 /C1);
+
+                double part3 = 0;
+                if (C0 != 0)
+                    part3 = (1 - k3) * (1 - k2) * ((double) N1 /C0);
+
+                double prob = part1 + part2 + part3;
+
                 Out4Key out4Key = new Out4Key(key.getW1(), key.getW2(), new DoubleWritable(prob));
                 System.out.println(String.format("DEBUG: Reducer calcs: <N1:%d N2:%d N3:%d C1:%d C2:%d C0:%d k2:%f k3:%f prob:%f>: ",N1,N2,N3,C1,C2,C0,k2,k3,prob));
                 System.out.println("DEBUG: Reducer writing: " + out4Key.toString() + " with w3: " + w3);
@@ -151,27 +155,17 @@ public class Job4 {
             HashMap<String, Long[]> H = new HashMap<>();
             for (FinalMapVal val : values) {
                 if (!H.containsKey(val.getW3())) {
-                    H.put(val.getW3(), new Long[]{val.getMatchCount(), val.getCount12(), val.getCount23(), val.getCount2(), val.getCount3()});
+                    H.put(val.getW3().toString(), new Long[]{val.getMatchCount(), val.getCount12(), val.getCount23(), val.getCount2(), val.getCount3()});
                 }
                 else {
-//                    long count12 = H.get(val.getW3())[1];
-//                    if (count12 == 0) {
-//                        count12 = val.getCount12();
-//                    }
-//                    long count23 = H.get(val.getW3())[2];
-//                    if (count23 == 0) {
-//                        count23 = val.getCount23();
-//                    }
-                    long count2 = H.get(val.getW3())[3];
-                    if (count2 == 0) {
-                        count2 = val.getCount2();
+                    long count2 = val.getCount2();
+                    if (count2 != 0) {
+                        H.get(val.getW3())[3] = count2;
                     }
-                    long count3 = H.get(val.getW3())[4];
-                    if (count3 == 0) {
-                        count3 = val.getCount3();
+                    long count3 = val.getCount3();
+                    if (count3 != 0) {
+                        H.get(val.getW3())[4] = count3;
                     }
-//                    H.put(val.getW3(), new Long[]{val.getMatchCount(),count12,count23,count2,count3});
-                    H.put(val.getW3(), new Long[]{val.getMatchCount(),val.getCount12(),val.getCount23(),count2,count3});
                 }
             }
 

@@ -1,0 +1,58 @@
+2025-01-02T10:35:48.473Z INFO Ensure step 5 jar file s3://my-bucket-mevuzarot-2024-ass2/Ass2.jar
+2025-01-02T10:35:49.940Z INFO StepRunner: Created Runner for step 5
+INFO startExec 'hadoop jar /mnt/var/lib/hadoop/steps/s-06815173T9I332A8M15H/Ass2.jar Job4'
+INFO Environment:
+  PATH=/sbin:/usr/sbin:/bin:/usr/bin:/usr/local/sbin:/opt/aws/bin
+  LESS_TERMCAP_md=[01;38;5;208m
+  LESS_TERMCAP_me=[0m
+  HISTCONTROL=ignoredups
+  LESS_TERMCAP_mb=[01;31m
+  AWS_AUTO_SCALING_HOME=/opt/aws/apitools/as
+  UPSTART_JOB=rc
+  LESS_TERMCAP_se=[0m
+  HISTSIZE=1000
+  HADOOP_ROOT_LOGGER=INFO,DRFA
+  JAVA_HOME=/etc/alternatives/jre
+  AWS_DEFAULT_REGION=us-west-2
+  AWS_ELB_HOME=/opt/aws/apitools/elb
+  LESS_TERMCAP_us=[04;38;5;111m
+  EC2_HOME=/opt/aws/apitools/ec2
+  TERM=linux
+  runlevel=3
+  LANG=en_US.UTF-8
+  AWS_CLOUDWATCH_HOME=/opt/aws/apitools/mon
+  MAIL=/var/spool/mail/hadoop
+  LESS_TERMCAP_ue=[0m
+  LOGNAME=hadoop
+  PWD=/
+  LANGSH_SOURCED=1
+  HADOOP_CLIENT_OPTS=-Djava.io.tmpdir=/mnt/var/lib/hadoop/steps/s-06815173T9I332A8M15H/tmp
+  _=/etc/alternatives/jre/bin/java
+  CONSOLETYPE=serial
+  RUNLEVEL=3
+  LESSOPEN=||/usr/bin/lesspipe.sh %s
+  previous=N
+  UPSTART_EVENTS=runlevel
+  AWS_PATH=/opt/aws
+  USER=hadoop
+  UPSTART_INSTANCE=
+  PREVLEVEL=N
+  HADOOP_LOGFILE=syslog
+  PYTHON_INSTALL_LAYOUT=amzn
+  HOSTNAME=ip-172-31-43-196
+  HADOOP_LOG_DIR=/mnt/var/log/hadoop/steps/s-06815173T9I332A8M15H
+  EC2_AMITOOL_HOME=/opt/aws/amitools/ec2
+  SHLVL=5
+  HOME=/home/hadoop
+  HADOOP_IDENT_STRING=hadoop
+INFO redirectOutput to /mnt/var/log/hadoop/steps/s-06815173T9I332A8M15H/stdout
+INFO redirectError to /mnt/var/log/hadoop/steps/s-06815173T9I332A8M15H/stderr
+INFO Working dir /mnt/var/lib/hadoop/steps/s-06815173T9I332A8M15H
+INFO ProcessRunner started child process 12149 :
+hadoop   12149  4049  0 10:35 ?        00:00:00 bash /usr/lib/hadoop/bin/hadoop jar /mnt/var/lib/hadoop/steps/s-06815173T9I332A8M15H/Ass2.jar Job4
+2025-01-02T10:35:53.979Z INFO HadoopJarStepRunner.Runner: startRun() called for s-06815173T9I332A8M15H Child Pid: 12149
+INFO Synchronously wait child process to complete : hadoop jar /mnt/var/lib/hadoop/steps/s-06815173...
+INFO waitProcessCompletion ended with exit code 0 : hadoop jar /mnt/var/lib/hadoop/steps/s-06815173...
+INFO total process run time: 66 seconds
+2025-01-02T10:36:58.076Z INFO Step created jobs: job_1735813115610_0005
+2025-01-02T10:36:58.076Z INFO Step succeeded with exitCode 0 and took 66 seconds
