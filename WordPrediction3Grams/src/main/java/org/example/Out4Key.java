@@ -28,7 +28,9 @@ public class Out4Key implements WritableComparable<Out4Key> {
         String combined2 = o.w1.toString() + o.w2.toString();
 
         if (combined.compareTo(combined2) == 0) {
-            return o.prob.compareTo(prob);
+            Double d1 = o.prob.get();
+            Double d2 = prob.get();
+            return d1.compareTo(d2);
         }
         return combined.compareTo(combined2);
     }
@@ -58,4 +60,5 @@ public class Out4Key implements WritableComparable<Out4Key> {
     public DoubleWritable getProb() {
         return prob;
     }
+
 }

@@ -17,12 +17,13 @@ public class AWSApp {
     public static AmazonEC2 ec2;
     public static AmazonElasticMapReduce emr;
 
-    public static int numberOfInstances = 3;
+    public static int numberOfInstances = 2;
     private static String region = "us-west-2";
 //    private static String region = "us-east-1";
     public static String bucketName = "my-bucket-mevuzarot-ass2-asd";
     private static String jarName = "Ass2.jar";
-    public static boolean use_demo_3gram = false;
+//    private static String jarName = "Ass2local.jar";
+    public static boolean use_demo_3gram = true;
 
     public static String baseURL = "s3://" + bucketName;
     public static String s3_3gram = "s3://datasets.elasticmapreduce/ngrams/books/20090715/heb-all/3gram/data";

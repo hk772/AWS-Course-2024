@@ -5,6 +5,7 @@ import org.apache.hadoop.fs.*;
 import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapreduce.*;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
@@ -12,9 +13,7 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import java.io.*;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
+import java.util.*;
 
 public class Job2 {
     private static boolean isLocal = false;
@@ -127,6 +126,9 @@ public class Job2 {
                 }
             }
 
+            // sorted by keys
+            TreeMap<Double, Writable[]> outs = new TreeMap<>();
+
             for (String w3 : H.keySet()) {
                 Long[] counts = H.get(w3);
 
@@ -143,12 +145,20 @@ public class Job2 {
                 System.out.println();
 
                 Out4Key out4Key = new Out4Key(new Text(key.getW1()), new Text(key.getW2()), new DoubleWritable(prob));
-                System.out.println("sending to out " + w3);
-                context.write(out4Key, new Text(w3));
+                outs.put(prob, new Writable[]{out4Key, new Text(w3)});
+//                System.out.println("sending to out " + w3);
+//                context.write(out4Key, new Text(w3));
+
+            }
+
+            for (Writable[] arr : outs.descendingMap().values()) {
+                context.write((Out4Key) arr[0], (Text) arr[1]);
             }
 
         }
+
     }
+
 
     public static class CombinerClass extends Reducer<WordPairKey, FinalMapVal, WordPairKey, FinalMapVal> {
         @Override
