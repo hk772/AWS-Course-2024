@@ -1,0 +1,13 @@
+adaptation	adaptation/NN/ROOT/0 class/JJ/dep/3 activity/NN/appos/1	10	1910,1	1927,8	1954,1
+adaptation	adaptation/NN/ROOT/0 coadaptation/NN/conj/1 and/CC/cc/1 boundaries/NNS/conj/1	24	1989,2	1990,3	1991,1	1993,5	1994,3	1995,6	1996,3	2004,1
+adaptation	adaptation/NN/ROOT/0 color/NN/nn/3 contrast/NN/dep/1	23	1985,2	1990,2	1991,1	1995,6	1998,4	2000,1	2001,1	2003,4	2004,1	2006,1
+adaptation	adaptation/NN/ROOT/0 come/VBN/ccomp/1 of/IN/prep/2 age/NN/pobj/3	16	1988,1	1995,1	1998,1	1999,1	2000,1	2001,4	2003,1	2005,4	2008,2
+activity	major/JJ/amod/3 national/JJ/amod/3 activity/NN/nsubj/0	16	1960,3	1973,7	1983,2	1985,2	1989,1	1997,1
+activity	major/JJ/amod/3 national/JJ/amod/3 activity/NN/pobj/0	16	1963,1	1976,2	1992,2	1993,1	1994,1	1996,2	2002,1	2003,5	2006,1
+activity	major/JJ/amod/3 new/JJ/amod/3 activity/NN/attr/0	18	1955,1	1964,1	1970,3	1975,2	1984,2	1989,3	1990,1	1991,1	2001,2	2002,1	2007,1
+activity	major/JJ/amod/3 new/JJ/amod/3 activity/NN/dobj/0	36	1970,3	1976,1	1979,1	1980,2	1983,1	1985,4	1986,1	1987,3	1988,2	1991,1	1993,1	1996,4	2000,2	2001,3	2002,2	2003,2	2004,1	2006,1	2007,1
+activity	major/JJ/amod/3 new/JJ/amod/3 activity/NN/nsubj/0	29	1961,1	1965,2	1975,1	1978,1	1979,2	1981,2	1986,2	1988,1	1992,1	1994,5	1996,1	1997,1	1998,1	2002,1	2004,2	2005,3	2008,2
+activity	major/JJ/amod/3 new/JJ/amod/3 activity/NN/pobj/0	75	1952,1	1954,5	1964,1	1966,2	1968,1	1970,1	1971,1	1973,2	1976,1	1978,2	1979,1	1981,1	1982,3	1983,4	1987,5	1989,4	1990,2	1991,4	1992,2	1994,1	1995,1	1996,1	1997,2	2000,8	2002,3	2003,4	2004,2	2005,2	2006,3	2007,3	2008,2
+activity	major/JJ/amod/3 objective/JJ/amod/3 activity/NN/dobj/0	14	2003,4	2004,2	2005,3	2006,2	2007,3
+activity	major/JJ/amod/3 occupational/JJ/amod/3 activity/NN/attr/0	14	1973,4	1980,3	1985,2	1987,1	1994,1	2000,1	2005,1	2006,1
+activity	major/JJ/amod/3 occupational/JJ/amod/3 activity/NN/nsubj/0	10	1949,3	1968,3	1980,1	1995,2	2000,1
