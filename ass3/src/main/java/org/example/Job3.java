@@ -155,7 +155,7 @@ public class Job3 {
         private Text calc_distances() {
             // use the assoc1 and assoc2 arrays of the last w1-w2 pair
             String dist_manhattan_string = String.join(" ", Arrays.stream(sums[SUM_MANHATTAN]).mapToObj(String::valueOf).collect(Collectors.toList()));
-            String dist_euclid_string = String.join(" ", Arrays.stream(sums[SUM_MANHATTAN]).mapToObj(x -> String.valueOf(Math.sqrt(x))).collect(Collectors.toList()));
+            String dist_euclid_string = String.join(" ", Arrays.stream(sums[SUM_EUCLID]).mapToObj(x -> String.valueOf(Math.sqrt(x))).collect(Collectors.toList()));
             double[] dist_cos_sim = new double[NUM_ASSOC];
             for (int i=0; i < dist_cos_sim.length; i++) {
                 dist_cos_sim[i] = (sums[SUM_MULT][i]) / (Math.sqrt(sums[SUM_LI1_SQUARED][i])*Math.sqrt(sums[SUM_LI2_SQUARED][i]));
