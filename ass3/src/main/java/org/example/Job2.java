@@ -157,11 +157,10 @@ public class Job2 {
                     double assoc2 = ((double)count_lf) / count_l;
                     double assoc3 = log2(((double)(count_lf * F))/(count_l * cur_f_count));
 
-                    double t1 = L * count_l * cur_f_count * F;
-                    t1 = Math.sqrt(t1);
-                    t1 = 1/t1;
-                    double t2 = (count_lf * F) - (count_l * cur_f_count);
-                    double assoc4 = t1 * t2;
+                    double t1 = (count_lf * F) - (count_l * cur_f_count);
+                    double t2 = L * count_l * cur_f_count * F;
+                    t2 = Math.sqrt(t2);
+                    double assoc4 = t1 / t2;
 
                     Text assocs = new Text(assoc1 + " " + assoc2 + " " + assoc3 + " " + assoc4);
                     context.write(new Text(lex + " " + feature), assocs);
