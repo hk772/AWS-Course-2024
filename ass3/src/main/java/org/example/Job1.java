@@ -27,7 +27,7 @@ public class Job1 {
             String[] parts = line.toString().split("\t");
             String lex = parts[0];
 
-            long count_long = Long.parseLong(parts[1]);
+            long count_long = Long.parseLong(parts[2]);
             LongWritable count = new LongWritable(count_long);
 
             String[] archs = parts[1].split(" ");
@@ -35,9 +35,11 @@ public class Job1 {
 
             WordAndTagKey key1 = new WordAndTagKey(new Text(lex), Lex_Tag);
             context.write(key1, count);
+            System.out.println("lex_tag key: " + key1.getW1() + " count: " + count_long);
 
             WordAndTagKey key3 = new WordAndTagKey(new Text(""), L_Tag);
             context.write(key3, count);
+            System.out.println("L_tag key: " + key3.getW1() + " count: " + count_long);
 
             //find root index
             for (int i=0; i < archs.length; i++) {
@@ -48,8 +50,10 @@ public class Job1 {
                     break;
                 }
             }
+            System.out.println("root index for line: " + rootIndex);
 
             int num_feature = 0;
+            int i = 1;
             for (String arch : archs) {
                 String[] subArchs = arch.split("/");
                 int headIndex = Integer.parseInt(subArchs[3]);
@@ -58,11 +62,15 @@ public class Job1 {
                     String feature = subArchs[0] + "-" + subArchs[2];
                     WordAndTagKey key = new WordAndTagKey(new Text(lex + " " + feature), Pair_Tag);
                     context.write(key, count);
+                    System.out.println("feature index: " + i);
+                    System.out.println("key: " + key.getW1() + " count: " + count_long);
                 }
+                i++;
             }
 
             WordAndTagKey key2 = new WordAndTagKey(new Text(""), F_Tag);
             context.write(key2, new LongWritable(num_feature * count_long));
+            System.out.println("F_tag key: " + key2.getTag() + " count: " + num_feature * count_long);
         }
     }
 
@@ -73,6 +81,8 @@ public class Job1 {
 
         @Override
         public void reduce(WordAndTagKey key, Iterable<LongWritable> vals, Context context) throws IOException, InterruptedException {
+            System.out.println("reduce: key: " + key.getW1() + " tag: " + key.getTag());
+
             if (key.getTag().equals(Lex_Tag)) {
                 this.cur_l = key.getW1().toString();
                 for (LongWritable v : vals) {
@@ -85,6 +95,7 @@ public class Job1 {
                 }
                 Text res = new Text(String.valueOf(lf_count) +  " " + String.valueOf(cur_l_count));
                 context.write(key.getW1(), res);
+                System.out.println("reducer write: key: " + key.getW1() + " count1: " + lf_count + " count2: " + cur_l_count);
             }
         }
     }
@@ -98,6 +109,7 @@ public class Job1 {
                 count += v.get();
             }
             context.write(key, new LongWritable(count));
+            System.out.println("combiner: key: " + key.getW1() + " " + key.getTag() + " count: " + count);
         }
     }
 

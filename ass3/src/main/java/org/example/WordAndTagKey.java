@@ -40,15 +40,32 @@ public class WordAndTagKey implements WritableComparable<WordAndTagKey> {
     public int compareTo(WordAndTagKey o) {
         String l1 = w1.toString();
         String l2 = o.w1.toString();
+
+
+
+
+
+        if (tag.equals(Job1.L_Tag) || tag.equals(Job1.F_Tag))
+            l1 = tag.toString();
+        if (o.tag.equals(Job1.L_Tag) || o.tag.equals(Job1.F_Tag))
+            l2 = o.tag.toString();
+
+        String f2 = "";
+        String f1 = "";
+
         if (tag.equals(Job1.Pair_Tag)){
-            l1 = w1.toString().split(" ")[1];
+            l1 = w1.toString().split(" ")[0];
+            f1 = w1.toString().split(" ")[1];
         }
         if (o.tag.equals(Job1.Pair_Tag)){
-            l2 = o.w1.toString().split(" ")[1];
+            l2 = o.w1.toString().split(" ")[0];
+            f2 = o.w1.toString().split(" ")[1];
         }
 
         if (l1.compareTo(l2) == 0){
-            return tag.compareTo(o.tag);    // Lex < Pair
+            if (f1.compareTo(f2) == 0)
+                return tag.compareTo(o.tag);    // Lex < Pair
+            return f1.compareTo(f2);
         }
         else{
             return l1.compareTo(l2);
@@ -73,6 +90,9 @@ public class WordAndTagKey implements WritableComparable<WordAndTagKey> {
         String l1 = w1.toString();
         if (tag.equals(Job1.Pair_Tag)){
             l1 = w1.toString().split(" ")[1];
+        }
+        else if (tag.equals(Job1.L_Tag) || tag.equals(Job1.F_Tag)){
+            l1 = tag.toString();
         }
         return l1.hashCode();
     }
