@@ -1,6 +1,8 @@
 package org.example;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.*;
 import org.apache.hadoop.mapreduce.*;
@@ -9,6 +11,8 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
 
 import java.io.IOException;
+import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 
 
 public class Job1 {
@@ -19,13 +23,20 @@ public class Job1 {
     public static final Text L_Tag = new Text("L");
     public static final Text F_Tag = new Text("F");
 
+    public static String FLFolder = "FLFolder";
+    public static String baseURL = "hdfs://localhost:9000/user/hdoop";
+    public static String FLLocalPath = baseURL + "/output/" + FLFolder + "/";
+//    public static String CalculateC0AppPath = AWSApp.baseURL + "/output/" + CalculateC0Folder;
+
 
     public static class MapperClass extends Mapper<LongWritable, Text, WordAndTagKey, LongWritable> {
-        // add stem
+        Stemmer s = new Stemmer();
+
         @Override
         public void map(LongWritable lineId, Text line, Context context) throws IOException,  InterruptedException {
             String[] parts = line.toString().split("\t");
             String lex = parts[0];
+            lex = s.stemWord(lex); // deactivate stemm
 
             long count_long = Long.parseLong(parts[2]);
             LongWritable count = new LongWritable(count_long);
@@ -59,7 +70,10 @@ public class Job1 {
                 int headIndex = Integer.parseInt(subArchs[3]);
                 if (headIndex == rootIndex) {
                     num_feature++;
-                    String feature = subArchs[0] + "-" + subArchs[2];
+                    String word = subArchs[0];
+                    word = s.stemWord(word);    // deactivate stemm
+                    String feature = word + "-" + subArchs[2];
+
                     WordAndTagKey key = new WordAndTagKey(new Text(lex + " " + feature), Pair_Tag);
                     context.write(key, count);
                     System.out.println("feature index: " + i);
@@ -79,6 +93,37 @@ public class Job1 {
         private String cur_l = "";
         private long cur_l_count = 0;
 
+        FSDataOutputStream out; // out stream to print word counts to CalculateC0 - it will be used on the next Job
+
+        @Override
+        public void setup(Context context) throws IOException {
+            Path outputFilePath = new Path(FLLocalPath, "part-" + context.getTaskAttemptID());
+            FileSystem fs = FileSystem.get(context.getConfiguration());
+
+//            if (!isLocal) {
+//                outputFilePath = new Path(CalculateC0AppPath, "part-" + context.getTaskAttemptID());
+//                try {
+//                    fs = FileSystem.get(new java.net.URI("s3a://" + AWSApp.bucketName), new Configuration());
+//                } catch (URISyntaxException ignored) {};
+//            }
+
+            FSDataOutputStream outStream = fs.create(outputFilePath, context);
+            out = outStream;
+        }
+
+        private void writeData(String word, long count) throws IOException {
+            String output = word + " " + count + System.lineSeparator();
+            byte[] utf8Bytes = output.getBytes(StandardCharsets.UTF_8);
+            out.write(utf8Bytes);
+        }
+
+        @Override
+        public void cleanup(Context context) throws IOException {
+            if (out != null) {
+                out.close();  // Ensure the stream is closed to flush and complete file writing
+            }
+        }
+
         @Override
         public void reduce(WordAndTagKey key, Iterable<LongWritable> vals, Context context) throws IOException, InterruptedException {
             System.out.println("reduce: key: " + key.getW1() + " tag: " + key.getTag());
@@ -96,6 +141,17 @@ public class Job1 {
                 Text res = new Text(String.valueOf(lf_count) +  " " + String.valueOf(cur_l_count));
                 context.write(key.getW1(), res);
                 System.out.println("reducer write: key: " + key.getW1() + " count1: " + lf_count + " count2: " + cur_l_count);
+            }
+            else {
+                long count = 0;
+                for (LongWritable v : vals) {
+                    count += v.get();
+                }
+
+                String k = "F";
+                if (key.getTag().equals(L_Tag))
+                    k = "L";
+                writeData(k, count);
             }
         }
     }

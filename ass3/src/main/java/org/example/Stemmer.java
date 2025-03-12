@@ -1,4 +1,4 @@
-
+package org.example;
 /*
 
    Porter stemmer in Java. The original paper is in
@@ -83,6 +83,26 @@ class Stemmer
          b = new_b;
       }
       for (int c = 0; c < wLen; c++) b[i++] = w[c];
+   }
+
+   public void add(String s){
+       for (Character c : s.toCharArray()){
+           add(c);
+       }
+   }
+
+   public String stemWord(String word){
+       reset();
+       add(word);
+       stem();
+       return toString();
+   }
+
+   public void reset(){
+       i = 0;
+       i_end = 0;
+       j = 0;
+       k = 0;
    }
 
    /**
