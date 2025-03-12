@@ -16,7 +16,7 @@ import java.nio.charset.StandardCharsets;
 
 
 public class Job1 {
-    private static boolean isLocal = true;
+    public static boolean isLocal = true;
 
     public static final Text Lex_Tag = new Text("Lex");     // Important: Lex_Tag must be less then Pair_Tag in lexical order
     public static final Text Pair_Tag = new Text("Pair");
@@ -130,6 +130,7 @@ public class Job1 {
 
             if (key.getTag().equals(Lex_Tag)) {
                 this.cur_l = key.getW1().toString();
+                cur_l_count = 0;
                 for (LongWritable v : vals) {
                     cur_l_count += v.get();
                 }
