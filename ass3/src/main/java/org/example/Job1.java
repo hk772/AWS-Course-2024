@@ -1,14 +1,20 @@
 package org.example;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.*;
 import org.apache.hadoop.mapreduce.*;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
 
 import java.io.IOException;
 
 
 public class Job1 {
-    public static final Text Lex_Tag = new Text("Lex");     // IMportant: Lex_Tag must be less then Pair_Tag in lexical order
+    private static boolean isLocal = true;
+
+    public static final Text Lex_Tag = new Text("Lex");     // Important: Lex_Tag must be less then Pair_Tag in lexical order
     public static final Text Pair_Tag = new Text("Pair");
     public static final Text L_Tag = new Text("L");
     public static final Text F_Tag = new Text("F");
@@ -61,11 +67,7 @@ public class Job1 {
     }
 
 
-
-
-
     public static class ReducerClass extends Reducer<WordAndTagKey, LongWritable, Text, Text> {
-
         private String cur_l = "";
         private long cur_l_count = 0;
 
@@ -84,10 +86,64 @@ public class Job1 {
                 Text res = new Text(String.valueOf(lf_count) +  " " + String.valueOf(cur_l_count));
                 context.write(key.getW1(), res);
             }
-
-
         }
+    }
 
+
+    public static class CombinerClass extends Reducer<WordAndTagKey, LongWritable, WordAndTagKey, LongWritable> {
+        @Override
+        public void reduce(WordAndTagKey key, Iterable<LongWritable> vals, Context context) throws IOException,  InterruptedException {
+            long count = 0;
+            for (LongWritable v : vals) {
+                count += v.get();
+            }
+            context.write(key, new LongWritable(count));
+        }
+    }
+
+
+    public static class PartitionerClass extends Partitioner<WordAndTagKey, LongWritable> {
+        @Override
+        public int getPartition(WordAndTagKey key, LongWritable value, int numPartitions) {
+            return (key.hashCode() & Integer.MAX_VALUE) % numPartitions;
+        }
+    }
+
+
+    public static void main(String[] args) throws Exception {
+        System.out.println("[DEBUG] STEP 1 started!");
+//        System.out.println(args.length > 0 ? args[0] : "no args");
+        Configuration conf = new Configuration();
+//        if (isLocal) {
+//            conf.set("stopwords", "hdfs://localhost:9000/user/hdoop/input/stopwords.txt");
+//        }
+//        else {
+//            conf.set("stopwords", AWSApp.baseURL + "/input/stopwords.txt");
+//        }
+        Job job = Job.getInstance(conf, "Job1");
+        job.setJarByClass(Job1.class);
+        job.setMapperClass(MapperClass.class);
+        job.setPartitionerClass(PartitionerClass.class);
+
+        job.setCombinerClass(CombinerClass.class);
+        job.setReducerClass(ReducerClass.class);
+
+        job.setMapOutputKeyClass(WordAndTagKey.class);
+        job.setMapOutputValueClass(LongWritable.class);
+        job.setOutputKeyClass(Text.class);
+        job.setOutputValueClass(Text.class);
+
+        if (isLocal) {
+            FileInputFormat.addInputPath(job, new Path("hdfs://localhost:9000/user/hdoop/input/ngrams.txt"));
+            FileOutputFormat.setOutputPath(job, new Path("hdfs://localhost:9000/user/hdoop/output/out1"));
+        }
+        else {
+            System.out.println("not implemented");
+//            FileInputFormat.addInputPath(job, new Path(AWSApp.baseURL + "/output/out0/part*"));
+//            FileInputFormat.addInputPath(job, new Path(Job1.CalculateC0AppPath + "/part*"));
+//            FileOutputFormat.setOutputPath(job, new Path(AWSApp.baseURL + "/output/out1"));
+        }
+        System.exit(job.waitForCompletion(true) ? 0 : 1);
     }
 
 }
