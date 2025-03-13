@@ -45,7 +45,12 @@ public class Job2 {
                 //find root index
                 for (int i=0; i < archs.length; i++) {
                     String[] subArchs = archs[i].split("/");
-                    int headIndex = Integer.parseInt(subArchs[3]);
+                    int headIndex;
+                    try {
+                        headIndex = Integer.parseInt(subArchs[3]);
+                    } catch (NumberFormatException e) {
+                        return;
+                    }
                     if (headIndex == 0) {
                         rootIndex = i+1;
                         break;
@@ -238,17 +243,24 @@ public class Job2 {
             FileInputFormat.addInputPath(job, new Path("hdfs://localhost:9000/user/hdoop/output/out1/part*"));
             FileOutputFormat.setOutputPath(job, new Path("hdfs://localhost:9000/user/hdoop/output/out2"));
         } else {
+            FileInputFormat.addInputPath(job, new Path(AWSApp.baseURL + "/output/out1/part*"));
             if (AWSApp.useCustomNgrams) {
                 FileInputFormat.addInputPath(job, new Path(AWSApp.baseURL + "/input/ngrams.txt"));
-                FileInputFormat.addInputPath(job, new Path(AWSApp.baseURL + "/output/out1/part*"));
                 FileOutputFormat.setOutputPath(job, new Path(AWSApp.baseURL + "/output/out2"));
             } else {
                 FileOutputFormat.setOutputPath(job, new Path(AWSApp.baseURL + "/output/out2"));
+//                job.setInputFormatClass(SequenceFileInputFormat.class); // Added to be able to parse the ngrams records correctly
 
-                if (AWSApp.onePercent) {
-                    job.setInputFormatClass(SequenceFileInputFormat.class); // Added to be able to parse the ngrams records correctly
-                    FileInputFormat.addInputPath(job, new Path("s3://my-bucket-mevuzarot-ass2-asd/input/biarcs.0-of-99.gz"));
-                    FileInputFormat.addInputPath(job, new Path(AWSApp.baseURL + "/output/out1/part*"));
+                if (AWSApp.corpusPercentage == AWSApp.Percentage.onePercent) {
+                    FileInputFormat.addInputPath(job, new Path(AWSApp.baseURL + "/input/biarcs.0-of-99.txt"));
+                } else if (AWSApp.corpusPercentage == AWSApp.Percentage.tenPercent) {
+                    for (int i=0; i<10;i++) {
+                        FileInputFormat.addInputPath(job, new Path(AWSApp.baseURL + "/input/biarcs." + i + "-of-99.txt"));
+                    }
+                } else if (AWSApp.corpusPercentage == AWSApp.Percentage.fullCorpus){
+                    for (int i=0; i<AWSApp.NUM_CORPUS_FILES;i++) {
+                        FileInputFormat.addInputPath(job, new Path(AWSApp.baseURL + "/input/biarcs." + i + "-of-99.txt"));
+                    }
                 } else {
                     System.out.println("not implemented");
                 }
