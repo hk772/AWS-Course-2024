@@ -63,6 +63,7 @@ public class Job3 {
                     hashMap.get(w2)[1].add(w1);
                 }
             }
+            hashMap.forEach((key, value) -> System.out.println(key + " " + value)); // print hashMap
         }
 
         @Override
@@ -72,16 +73,19 @@ public class Job3 {
             String lex = parts[0].split(" ")[0];
             String feature = parts[0].split(" ")[1];
             String assocs = parts[1];
+            System.out.println("received in mapper: key: " + line);
 
             for (String w2 : hashMap.get(lex)[0]) {
                 TwoWordsAndFeatureKey k = new TwoWordsAndFeatureKey(new Text(lex), new Text(w2), new Text(feature));
                 WordAndTagKey v = new WordAndTagKey(new Text(assocs), new Text("First"));
+                System.out.println("sent from mapper: key: " + k.getW1W2() + " " + k.getFeature() + " value:" + v.getW1() + " " + v.getTag());
                 context.write(k, v);
             }
             for (String w1 : hashMap.get(lex)[1]) {
                 TwoWordsAndFeatureKey k = new TwoWordsAndFeatureKey(new Text(w1), new Text(lex), new Text(feature));
                 WordAndTagKey v = new WordAndTagKey(new Text(assocs), new Text("Second"));
-                context.write(k, v);
+                System.out.println("sent from mapper: key: " + k.getW1W2() + " " + k.getFeature() + " value:" + v.getW1() + " " + v.getTag());
+                context.write(k, v); // <axe,adapt,f_i> Second 0.5 0.4 0.4 0.5
             }
         }
     }
@@ -127,7 +131,9 @@ public class Job3 {
             // emit all 24 values when the W1W2 pair swaps
             if (currentW1W2 != null && !key.getW1W2().equals(currentW1W2)) {
                 Text k = new Text(key.getW1W2());
-                context.write(k, calc_distances()); // 24 values of all possible distances with all possible assocs
+                Text distances = calc_distances(); // 24 values of all possible distances with all possible assocs
+                System.out.println("sent from reducer: key: " + k.toString() + " value: " + distances);
+                context.write(k, distances);
                 sums = new double[NUM_SUMS][NUM_ASSOC];
             }
 
@@ -136,7 +142,6 @@ public class Job3 {
                 sums[SUM_MANHATTAN][i] += Math.abs(assoc1[i] - assoc2[i]);
                 sums[SUM_EUCLID][i] += Math.pow(assoc1[i] - assoc2[i],2);
                 sums[SUM_MULT][i] += assoc1[i] * assoc2[i];
-
                 sums[SUM_LI1_SQUARED][i] += Math.pow(assoc1[i],2);
                 sums[SUM_LI2_SQUARED][i] += Math.pow(assoc2[i],2);
                 sums[SUM_MIN][i] += Math.min(assoc1[i], assoc2[i]);
@@ -153,7 +158,7 @@ public class Job3 {
         }
 
         private Text calc_distances() {
-            // use the assoc1 and assoc2 arrays of the last w1-w2 pair
+            // use the assoc1 and assoc2 arrays of the last w1-w2 pair?
             String dist_manhattan_string = String.join(" ", Arrays.stream(sums[SUM_MANHATTAN]).mapToObj(String::valueOf).collect(Collectors.toList()));
             String dist_euclid_string = String.join(" ", Arrays.stream(sums[SUM_EUCLID]).mapToObj(x -> String.valueOf(Math.sqrt(x))).collect(Collectors.toList()));
             double[] dist_cos_sim = new double[NUM_ASSOC];
@@ -181,7 +186,9 @@ public class Job3 {
         @Override
         public void cleanup(Context context) throws IOException, InterruptedException {
             Text k = new Text(currentW1W2);
-            context.write(k, calc_distances()); // 24 values of all possible distances with all possible assocs
+            Text distances = calc_distances(); // 24 values of all possible distances with all possible assocs
+            System.out.println("sent from reducer: key: " + k.toString() + " value: " + distances);
+            context.write(k, distances);
         }
 
     }
