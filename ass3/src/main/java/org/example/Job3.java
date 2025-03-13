@@ -63,7 +63,7 @@ public class Job3 {
                     hashMap.get(w2)[1].add(w1);
                 }
             }
-            hashMap.forEach((key, value) -> System.out.println(key + " " + value)); // print hashMap
+            hashMap.forEach((key, value) -> System.out.println(key + " " + Arrays.toString(Arrays.stream(value).toArray()))); // print hashMap
         }
 
         @Override
@@ -84,7 +84,7 @@ public class Job3 {
             for (String w1 : hashMap.get(lex)[1]) {
                 TwoWordsAndFeatureKey k = new TwoWordsAndFeatureKey(new Text(w1), new Text(lex), new Text(feature));
                 WordAndTagKey v = new WordAndTagKey(new Text(assocs), new Text("Second"));
-                System.out.println("sent from mapper: key: " + k.getW1W2() + " " + k.getFeature() + " value:" + v.getW1() + " " + v.getTag());
+                System.out.println("sent from mapper: key: " + k.getW1W2() + " " + k.getFeature() + " value: " + v.getW1() + " " + v.getTag());
                 context.write(k, v); // <axe,adapt,f_i> Second 0.5 0.4 0.4 0.5
             }
         }
@@ -123,6 +123,8 @@ public class Job3 {
                     val2 = val;
                 }
             }
+
+            System.out.println("received in reducer: key: " + key.getW1W2() + " " + key.getFeature() + " val1: " + val1.getW1() + " " + val1.getTag() + " val2: " + val2.getW1() + " " + val2.getTag());
 
             // extract the assoc values for each word
             assoc1 = Arrays.stream(val1.getW1().toString().split(" ")).map(Long::parseLong).collect(Collectors.toList()).toArray(assoc1);
