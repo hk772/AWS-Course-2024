@@ -104,11 +104,11 @@ public class Job3 {
         private final int SUM_ADD = 7;
         private final int SUM_JS = 8; // equation (17)
         private final int NUM_SUMS = 9;
-        private int NUM_ASSOC = 4;
+        private final int NUM_ASSOC = 4;
         private double[][] sums = new double[NUM_SUMS][NUM_ASSOC];
 
-        private Long[] assoc1 = new Long[NUM_ASSOC];
-        private Long[] assoc2 = new Long[NUM_ASSOC];
+        private Double[] assoc1 = new Double[NUM_ASSOC];
+        private Double[] assoc2 = new Double[NUM_ASSOC];
 
 
         @Override
@@ -116,10 +116,10 @@ public class Job3 {
             WordAndTagKey val1 = new WordAndTagKey(new Text("0 0 0 0"), new Text("First"));
             WordAndTagKey val2 = new WordAndTagKey(new Text("0 0 0 0"), new Text("Second"));
             for (WordAndTagKey val : vals) {
-                if (val.getTag().equals("First")) {
+                if (val.getTag().toString().equals("First")) {
                     val1 = val;
                 }
-                if (val.getTag().equals("Second")) {
+                if (val.getTag().toString().equals("Second")) {
                     val2 = val;
                 }
             }
@@ -127,12 +127,12 @@ public class Job3 {
             System.out.println("received in reducer: key: " + key.getW1W2() + " " + key.getFeature() + " val1: " + val1.getW1() + " " + val1.getTag() + " val2: " + val2.getW1() + " " + val2.getTag());
 
             // extract the assoc values for each word
-            assoc1 = Arrays.stream(val1.getW1().toString().split(" ")).map(Long::parseLong).collect(Collectors.toList()).toArray(assoc1);
-            assoc2 = Arrays.stream(val2.getW1().toString().split(" ")).map(Long::parseLong).collect(Collectors.toList()).toArray(assoc2);
+            assoc1 = Arrays.stream(val1.getW1().toString().split(" ")).map(Double::parseDouble).collect(Collectors.toList()).toArray(assoc1);
+            assoc2 = Arrays.stream(val2.getW1().toString().split(" ")).map(Double::parseDouble).collect(Collectors.toList()).toArray(assoc2);
 
             // emit all 24 values when the W1W2 pair swaps
             if (currentW1W2 != null && !key.getW1W2().equals(currentW1W2)) {
-                Text k = new Text(key.getW1W2());
+                Text k = new Text(currentW1W2);
                 Text distances = calc_distances(); // 24 values of all possible distances with all possible assocs
                 System.out.println("sent from reducer: key: " + k.toString() + " value: " + distances);
                 context.write(k, distances);
@@ -187,10 +187,16 @@ public class Job3 {
 
         @Override
         public void cleanup(Context context) throws IOException, InterruptedException {
-            Text k = new Text(currentW1W2);
-            Text distances = calc_distances(); // 24 values of all possible distances with all possible assocs
-            System.out.println("sent from reducer: key: " + k.toString() + " value: " + distances);
-            context.write(k, distances);
+            if (currentW1W2 != null) {
+                Text k = new Text(currentW1W2);
+                Text distances = calc_distances(); // 24 values of all possible distances with all possible assocs
+                System.out.println("sent from reducer: key: " + k.toString() + " value: " + distances);
+                context.write(k, distances);
+                sums = new double[NUM_SUMS][NUM_ASSOC]; // probably not necessary
+            }
+            else {
+                System.out.println("Something wrong happened, cleanup executed before reduce");
+            }
         }
 
     }

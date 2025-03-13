@@ -54,7 +54,7 @@ public class TwoWordsAndFeatureKey implements WritableComparable<TwoWordsAndFeat
         if (w1.compareTo(o.w1) != 0) {
             return w1.compareTo(o.w1);
         }
-        if (w2.compareTo(o.w1) != 0) {
+        if (w2.compareTo(o.w2) != 0) {
             return w2.compareTo(o.w2);
         }
         return feature.compareTo(o.feature);
