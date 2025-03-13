@@ -77,17 +77,19 @@ public class Job3 {
             String assocs = parts[1];
             System.out.println("received in mapper: key: " + line);
 
-            for (String w2 : hashMap.get(lex)[0]) {
-                TwoWordsAndFeatureKey k = new TwoWordsAndFeatureKey(new Text(lex), new Text(w2), new Text(feature));
-                WordAndTagKey v = new WordAndTagKey(new Text(assocs), new Text("First"));
-                System.out.println("sent from mapper: key: " + k.getW1W2() + " " + k.getFeature() + " value:" + v.getW1() + " " + v.getTag());
-                context.write(k, v);
-            }
-            for (String w1 : hashMap.get(lex)[1]) {
-                TwoWordsAndFeatureKey k = new TwoWordsAndFeatureKey(new Text(w1), new Text(lex), new Text(feature));
-                WordAndTagKey v = new WordAndTagKey(new Text(assocs), new Text("Second"));
-                System.out.println("sent from mapper: key: " + k.getW1W2() + " " + k.getFeature() + " value: " + v.getW1() + " " + v.getTag());
-                context.write(k, v); // <axe,adapt,f_i> Second 0.5 0.4 0.4 0.5
+            if (hashMap.containsKey(lex)) {
+                for (String w2 : hashMap.get(lex)[0]) {
+                    TwoWordsAndFeatureKey k = new TwoWordsAndFeatureKey(new Text(lex), new Text(w2), new Text(feature));
+                    WordAndTagKey v = new WordAndTagKey(new Text(assocs), new Text("First"));
+                    System.out.println("sent from mapper: key: " + k.getW1W2() + " " + k.getFeature() + " value:" + v.getW1() + " " + v.getTag());
+                    context.write(k, v);
+                }
+                for (String w1 : hashMap.get(lex)[1]) {
+                    TwoWordsAndFeatureKey k = new TwoWordsAndFeatureKey(new Text(w1), new Text(lex), new Text(feature));
+                    WordAndTagKey v = new WordAndTagKey(new Text(assocs), new Text("Second"));
+                    System.out.println("sent from mapper: key: " + k.getW1W2() + " " + k.getFeature() + " value: " + v.getW1() + " " + v.getTag());
+                    context.write(k, v); // <axe,adapt,f_i> Second 0.5 0.4 0.4 0.5
+                }
             }
         }
     }
@@ -113,7 +115,7 @@ public class Job3 {
 
         @Override
         public void setup(Reducer.Context context) throws IOException, InterruptedException {
-            context.write(new Text("w1,w2,c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16,c17,c18,c19,c20,c21,c22,c23,c24"), new Text(""));
+            context.write(new Text("w1,w2"), new Text("c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16,c17,c18,c19,c20,c21,c22,c23,c24"));
         }
 
 
