@@ -9,6 +9,7 @@ import org.apache.hadoop.mapreduce.*;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 
 
 import java.io.IOException;
@@ -214,9 +215,21 @@ public class Job1 {
                 FileInputFormat.addInputPath(job, new Path(AWSApp.baseURL + "/input/ngrams.txt"));
                 FileOutputFormat.setOutputPath(job, new Path(AWSApp.baseURL + "/output/out1"));
             }
-            else {
-                System.out.println("not implemented");
+            else{
+                // setting output format
+                job.setOutputFormatClass(SequenceFileOutputFormat.class);
+                FileOutputFormat.setOutputPath(job, new Path(AWSApp.baseURL + "/output/out1"));
+
+
+                if (AWSApp.onePercent) {
+                    job.setInputFormatClass(SequenceFileInputFormat.class); // Added to be able to parse the ngrams records correctly
+                    FileInputFormat.addInputPath(job, new Path("s3://my-bucket-mevuzarot-ass2-asd/input/biarcs.0-of-99.gz"));
+                }
+                else{
+                    System.out.println("not implemented");
+                }
             }
+
         }
         System.exit(job.waitForCompletion(true) ? 0 : 1);
     }

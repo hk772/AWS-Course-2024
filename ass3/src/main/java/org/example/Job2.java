@@ -9,7 +9,9 @@ import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Partitioner;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -235,20 +237,25 @@ public class Job2 {
             FileInputFormat.addInputPath(job, new Path("hdfs://localhost:9000/user/hdoop/input/ngrams.txt"));
             FileInputFormat.addInputPath(job, new Path("hdfs://localhost:9000/user/hdoop/output/out1/part*"));
             FileOutputFormat.setOutputPath(job, new Path("hdfs://localhost:9000/user/hdoop/output/out2"));
-        }
-        else {
+        } else {
             if (AWSApp.useCustomNgrams) {
                 FileInputFormat.addInputPath(job, new Path(AWSApp.baseURL + "/input/ngrams.txt"));
                 FileInputFormat.addInputPath(job, new Path(AWSApp.baseURL + "/output/out1/part*"));
                 FileOutputFormat.setOutputPath(job, new Path(AWSApp.baseURL + "/output/out2"));
+            } else {
+                FileOutputFormat.setOutputPath(job, new Path(AWSApp.baseURL + "/output/out2"));
+
+                if (AWSApp.onePercent) {
+                    job.setInputFormatClass(SequenceFileInputFormat.class); // Added to be able to parse the ngrams records correctly
+                    FileInputFormat.addInputPath(job, new Path("s3://my-bucket-mevuzarot-ass2-asd/input/biarcs.0-of-99.gz"));
+                    FileInputFormat.addInputPath(job, new Path(AWSApp.baseURL + "/output/out1/part*"));
+                } else {
+                    System.out.println("not implemented");
+                }
             }
-            else {
-                System.out.println("not implemented");
-            }
+            System.exit(job.waitForCompletion(true) ? 0 : 1);
         }
-        System.exit(job.waitForCompletion(true) ? 0 : 1);
+
     }
-
-
 
 }

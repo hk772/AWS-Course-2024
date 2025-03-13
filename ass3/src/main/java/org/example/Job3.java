@@ -6,14 +6,12 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapreduce.Job;
-import org.apache.hadoop.mapreduce.Mapper;
-import org.apache.hadoop.mapreduce.Partitioner;
-import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.*;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
 import java.io.BufferedReader;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URISyntaxException;
@@ -42,7 +40,9 @@ public class Job3 {
                 filePath = new Path(GoldStandardAWSPath);
                 try {
                     fs = FileSystem.get(new java.net.URI(AWSApp.baseURL), new Configuration());
-                } catch (URISyntaxException ignored) {};
+                } catch (URISyntaxException ignored) {
+                }
+                ;
             }
 
             try (FSDataInputStream fsDataInputStream = fs.open(filePath);
@@ -56,10 +56,10 @@ public class Job3 {
                     w2 = s.stemWord(w2); // remove this line to disable stemmer
 
                     if (!hashMap.containsKey(w1)) {
-                        hashMap.put(w1, new HashSet[]{new HashSet<String>(),new HashSet<String>()});
+                        hashMap.put(w1, new HashSet[]{new HashSet<String>(), new HashSet<String>()});
                     }
                     if (!hashMap.containsKey(w2)) {
-                        hashMap.put(w2, new HashSet[]{new HashSet<String>(),new HashSet<String>()});
+                        hashMap.put(w2, new HashSet[]{new HashSet<String>(), new HashSet<String>()});
                     }
                     hashMap.get(w1)[0].add(w2);
                     hashMap.get(w2)[1].add(w1);
@@ -69,7 +69,7 @@ public class Job3 {
         }
 
         @Override
-        public void map(LongWritable lineId, Text line, Context context) throws IOException,  InterruptedException {
+        public void map(LongWritable lineId, Text line, Context context) throws IOException, InterruptedException {
             String[] parts = line.toString().split("\t");
             // line from out2
             String lex = parts[0].split(" ")[0];
@@ -93,7 +93,6 @@ public class Job3 {
     }
 
 
-
     public static class ReducerClass extends Reducer<TwoWordsAndFeatureKey, WordAndTagKey, Text, Text> {
         private String currentW1W2 = null;
         private final int SUM_MANHATTAN = 0;
@@ -111,6 +110,12 @@ public class Job3 {
 
         private Double[] assoc1 = new Double[NUM_ASSOC];
         private Double[] assoc2 = new Double[NUM_ASSOC];
+
+        @Override
+        public void setup(Reducer.Context context) throws IOException, InterruptedException {
+            context.write(new Text("w1,w2,c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16,c17,c18,c19,c20,c21,c22,c23,c24"), new Text(""));
+        }
+
 
 
         @Override
@@ -142,20 +147,20 @@ public class Job3 {
             }
 
             // calc according to val1 and val2, add to summaries
-            for (int i=0; i<NUM_ASSOC; i++) {
+            for (int i = 0; i < NUM_ASSOC; i++) {
                 sums[SUM_MANHATTAN][i] += Math.abs(assoc1[i] - assoc2[i]);
-                sums[SUM_EUCLID][i] += Math.pow(assoc1[i] - assoc2[i],2);
+                sums[SUM_EUCLID][i] += Math.pow(assoc1[i] - assoc2[i], 2);
                 sums[SUM_MULT][i] += assoc1[i] * assoc2[i];
-                sums[SUM_LI1_SQUARED][i] += Math.pow(assoc1[i],2);
-                sums[SUM_LI2_SQUARED][i] += Math.pow(assoc2[i],2);
+                sums[SUM_LI1_SQUARED][i] += Math.pow(assoc1[i], 2);
+                sums[SUM_LI2_SQUARED][i] += Math.pow(assoc2[i], 2);
                 sums[SUM_MIN][i] += Math.min(assoc1[i], assoc2[i]);
                 sums[SUM_MAX][i] += Math.max(assoc1[i], assoc2[i]);
                 sums[SUM_ADD][i] += assoc1[i] + assoc2[i]; // need to verify this
-                double term1 = ((double)2*assoc1[i]/(assoc1[i]+assoc2[i]));
-                term1 = assoc1[i]*Job2.log2(term1);
-                double term2 = ((double)2*assoc2[i]/(assoc1[i]+assoc2[i]));
-                term2 = assoc2[i]*Job2.log2(term2);
-                sums[SUM_JS][i] += term1+term2;
+                double term1 = ((double) 2 * assoc1[i] / (assoc1[i] + assoc2[i]));
+                term1 = assoc1[i] * Job2.log2(term1);
+                double term2 = ((double) 2 * assoc2[i] / (assoc1[i] + assoc2[i]));
+                term2 = assoc2[i] * Job2.log2(term2);
+                sums[SUM_JS][i] += term1 + term2;
             }
 
             currentW1W2 = key.getW1W2();
@@ -166,19 +171,19 @@ public class Job3 {
             String dist_manhattan_string = String.join(" ", Arrays.stream(sums[SUM_MANHATTAN]).mapToObj(String::valueOf).collect(Collectors.toList()));
             String dist_euclid_string = String.join(" ", Arrays.stream(sums[SUM_EUCLID]).mapToObj(x -> String.valueOf(Math.sqrt(x))).collect(Collectors.toList()));
             double[] dist_cos_sim = new double[NUM_ASSOC];
-            for (int i=0; i < dist_cos_sim.length; i++) {
-                dist_cos_sim[i] = (sums[SUM_MULT][i]) / (Math.sqrt(sums[SUM_LI1_SQUARED][i])*Math.sqrt(sums[SUM_LI2_SQUARED][i]));
+            for (int i = 0; i < dist_cos_sim.length; i++) {
+                dist_cos_sim[i] = (sums[SUM_MULT][i]) / (Math.sqrt(sums[SUM_LI1_SQUARED][i]) * Math.sqrt(sums[SUM_LI2_SQUARED][i]));
             }
             String dist_cos_sim_string = String.join(" ", Arrays.stream(dist_cos_sim).mapToObj(String::valueOf).collect(Collectors.toList()));
             double[] dist_jaccard_sim = new double[NUM_ASSOC];
-            for (int i=0; i < dist_jaccard_sim.length; i++) {
+            for (int i = 0; i < dist_jaccard_sim.length; i++) {
                 dist_jaccard_sim[i] = (sums[SUM_MIN][i]) / (sums[SUM_MAX][i]);
             }
             String dist_jaccard_sim_string = String.join(" ", Arrays.stream(dist_jaccard_sim).mapToObj(String::valueOf).collect(Collectors.toList()));
 
             double[] dist_dice_sim = new double[NUM_ASSOC];
-            for (int i=0; i < dist_dice_sim.length; i++) {
-                dist_dice_sim[i] = 2*(sums[SUM_MIN][i]) / (sums[SUM_ADD][i]);
+            for (int i = 0; i < dist_dice_sim.length; i++) {
+                dist_dice_sim[i] = 2 * (sums[SUM_MIN][i]) / (sums[SUM_ADD][i]);
             }
             String dist_dice_sim_string = String.join(" ", Arrays.stream(dist_dice_sim).mapToObj(String::valueOf).collect(Collectors.toList()));
             String dist_js_string = String.join(" ", Arrays.stream(sums[SUM_JS]).mapToObj(String::valueOf).collect(Collectors.toList()));
@@ -195,8 +200,7 @@ public class Job3 {
                 System.out.println("sent from reducer: key: " + k.toString() + " value: " + distances);
                 context.write(k, distances);
                 sums = new double[NUM_SUMS][NUM_ASSOC]; // probably not necessary
-            }
-            else {
+            } else {
                 System.out.println("Something wrong happened, cleanup executed before reduce");
             }
         }
@@ -210,7 +214,6 @@ public class Job3 {
 //            }
 //        }
 //    }
-
 
 
 //    public static class CombinerClass extends Reducer<WordTripletKey, WordAndTagKey, WordTripletKey, WordAndTagKey> {
@@ -246,6 +249,57 @@ public class Job3 {
     }
 
 
+    public static class CustomOutputFormat extends FileOutputFormat<Text, Text> {
+
+        @Override
+        public RecordWriter<Text, Text> getRecordWriter(TaskAttemptContext context) throws IOException, InterruptedException {
+            return new CustomOutputFormat.CustomRecordWriter(context);
+        }
+
+        public static class CustomRecordWriter extends RecordWriter<Text, Text> {
+
+            private final DataOutputStream out;
+
+            public CustomRecordWriter(TaskAttemptContext context) throws IOException {
+                // Initialize writer (this would be to a file in the HDFS output)
+
+                Path outputFilePath = new Path(CustomOutputFormat.getOutputPath(context), "part-" + context.getTaskAttemptID());
+                FileSystem fs = FileSystem.get(context.getConfiguration());
+                if (!AWSApp.isLocal) {
+                    try {
+                        fs = FileSystem.get(new java.net.URI(AWSApp.baseURL), new Configuration());
+                    } catch (URISyntaxException ignored) {
+                    }
+                    ;
+                }
+
+                out = fs.create(outputFilePath, context);
+            }
+
+            @Override
+            public void write(Text key, Text value) throws IOException, InterruptedException {
+                // Format the output line as w1\tw2\tw3\tprob
+
+                String words = key.toString().replaceAll(" ", ",") + "," + value.toString().replaceAll(" ", ",") + "\n";
+
+                // Format the line with UTF-8 support
+                byte[] utf8Bytes = words.getBytes(StandardCharsets.UTF_8);
+
+                // Write the bytes
+                out.write(utf8Bytes);
+            }
+
+            @Override
+            public void close(TaskAttemptContext context) throws IOException, InterruptedException {
+                out.close();
+            }
+        }
+    }
+
+
+
+
+
     public static void main(String[] args) throws Exception {
         System.out.println("[DEBUG] STEP 3 started!");
 //        System.out.println(args.length > 0 ? args[0] : "no args");
@@ -271,16 +325,13 @@ public class Job3 {
 
         if (AWSApp.isLocal) {
             FileInputFormat.addInputPath(job, new Path("hdfs://localhost:9000/user/hdoop/output/out2/part*"));
+            job.setOutputFormatClass(CustomOutputFormat.class);
             FileOutputFormat.setOutputPath(job, new Path("hdfs://localhost:9000/user/hdoop/output/out3"));
         }
         else {
-            if (AWSApp.useCustomNgrams) {
-                FileInputFormat.addInputPath(job, new Path(AWSApp.baseURL + "/output/out2/part*"));
-                FileOutputFormat.setOutputPath(job, new Path(AWSApp.baseURL + "/output/out3"));
-            }
-            else {
-                System.out.println("not implemented");
-            }
+            FileInputFormat.addInputPath(job, new Path(AWSApp.baseURL + "/output/out2/part*"));
+            job.setOutputFormatClass(CustomOutputFormat.class);
+            FileOutputFormat.setOutputPath(job, new Path(AWSApp.baseURL + "/output/out3"));
         }
         System.exit(job.waitForCompletion(true) ? 0 : 1);
     }

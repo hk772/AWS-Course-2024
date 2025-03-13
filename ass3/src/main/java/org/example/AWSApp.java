@@ -20,15 +20,18 @@ public class AWSApp {
     public static int numberOfInstances = 2;
     private static String region = "us-west-2";
 //    private static String region = "us-east-1";
-    public static String bucketName = "my-bucket-mevuzarot-ass3-asd";
+    public static String bucketName = "my-bucket-mevuzarot-ass2-asd";
     private static String jarName = "ass3.jar";
 //    private static String jarName = "ass3local.jar";
     public static boolean isLocal = false;
-    public static boolean useCustomNgrams = true;
+    public static boolean useCustomNgrams = false;
+    public static boolean onePercent = true;
 
     public static String baseURL = "s3://" + bucketName;
     public static String ngram_prefix = "http://commondatastorage.googleapis.com/books/syntactic-ngrams/eng/biarcs.{"; //s3://datasets.elasticmapreduce/ngrams/books/20090715/heb-all/3gram/data";
     public static String ngram_suffix = "}-of-99.gz"; // + "XX" in between
+
+    public static final String Corpus1Percent = "s3://my-bucket-mevuzarot-ass2-asd/input/biarcs.0-of-99.gz";
 
 
     public static void main(String[]args){
