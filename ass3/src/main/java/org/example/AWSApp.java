@@ -30,13 +30,13 @@ public class AWSApp {
         tenPercent,
         fullCorpus
     }
-    public static Percentage corpusPercentage = Percentage.onePercent; // swap corpus percentage here (10% / 100%)
+    public static Percentage corpusPercentage = Percentage.onePercent; // swap corpus percentage here (1% / 10% / 100%)
     public static final int NUM_CORPUS_FILES = 99;
 
     public static String baseURL = "s3://" + bucketName;
     public static String ngram_prefix = "http://commondatastorage.googleapis.com/books/syntactic-ngrams/eng/biarcs.{"; //s3://datasets.elasticmapreduce/ngrams/books/20090715/heb-all/3gram/data";
     public static String ngram_suffix = "}-of-99.txt"; // "}-of-99.gz"; // + "XX" in between
-    // for i in $(seq -w 0 99); do   curl "http://commondatastorage.googleapis.com/books/syntactic-ngrams/eng/biarcs.${i}-of-99.gz" | gunzip | aws s3 cp - s3://my-bucket-mevuzarot-ass3-asd/input/biarcs.${i}-of-99.txt; done
+    // for i in $(seq -w 0 98); do   curl "http://commondatastorage.googleapis.com/books/syntactic-ngrams/eng/biarcs.${i}-of-99.gz" | gunzip | aws s3 cp - s3://my-bucket-mevuzarot-ass3-asd/input/biarcs.${i}-of-99.txt; done
 
     public static final String Corpus1Percent = AWSApp.baseURL + "/input/biarcs.0-of-99.txt";
 
