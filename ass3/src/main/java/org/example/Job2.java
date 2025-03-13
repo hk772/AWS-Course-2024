@@ -14,6 +14,7 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 
 public class Job2 {
@@ -87,12 +88,12 @@ public class Job2 {
 
             // load file
             FileSystem fs = FileSystem.get(conf);
-//            if (!Job1.isLocal) {
-//                FLpath = new Path(JobC0.C0AppPath);
-//                try {
-//                    fs = FileSystem.get(new java.net.URI(AWSApp.baseURL), new Configuration());
-//                } catch (URISyntaxException ignored) {};
-//            }
+            if (!AWSApp.isLocal) {
+                FLpath = new Path(Job1.FLAWSPath);
+                try {
+                    fs = FileSystem.get(new java.net.URI(AWSApp.baseURL), new Configuration());
+                } catch (URISyntaxException ignored) {};
+            }
             try {
                 // List the files in the directory
                 FileStatus[] fileStatuses = fs.listStatus(FLpath);
@@ -230,16 +231,20 @@ public class Job2 {
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(Text.class);
 
-        if (Job1.isLocal) {
+        if (AWSApp.isLocal) {
             FileInputFormat.addInputPath(job, new Path("hdfs://localhost:9000/user/hdoop/input/ngrams.txt"));
             FileInputFormat.addInputPath(job, new Path("hdfs://localhost:9000/user/hdoop/output/out1/part*"));
             FileOutputFormat.setOutputPath(job, new Path("hdfs://localhost:9000/user/hdoop/output/out2"));
         }
         else {
-            System.out.println("not implemented");
-//            FileInputFormat.addInputPath(job, new Path(AWSApp.baseURL + "/output/out0/part*"));
-//            FileInputFormat.addInputPath(job, new Path(Job1.CalculateC0AppPath + "/part*"));
-//            FileOutputFormat.setOutputPath(job, new Path(AWSApp.baseURL + "/output/out1"));
+            if (AWSApp.useCustomNgrams) {
+                FileInputFormat.addInputPath(job, new Path(AWSApp.baseURL + "/input/ngrams.txt"));
+                FileInputFormat.addInputPath(job, new Path(AWSApp.baseURL + "/output/out1/part*"));
+                FileOutputFormat.setOutputPath(job, new Path(AWSApp.baseURL + "/output/out2"));
+            }
+            else {
+                System.out.println("not implemented");
+            }
         }
         System.exit(job.waitForCompletion(true) ? 0 : 1);
     }

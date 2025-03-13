@@ -7,6 +7,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.*;
 import org.apache.hadoop.mapreduce.*;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
 
@@ -16,8 +17,6 @@ import java.nio.charset.StandardCharsets;
 
 
 public class Job1 {
-    public static boolean isLocal = true;
-
     public static final Text Lex_Tag = new Text("Lex");     // Important: Lex_Tag must be less then Pair_Tag in lexical order
     public static final Text Pair_Tag = new Text("Pair");
     public static final Text L_Tag = new Text("L");
@@ -26,7 +25,7 @@ public class Job1 {
     public static String FLFolder = "FLFolder";
     public static String baseURL = "hdfs://localhost:9000/user/hdoop";
     public static String FLLocalPath = baseURL + "/output/" + FLFolder + "/";
-//    public static String CalculateC0AppPath = AWSApp.baseURL + "/output/" + CalculateC0Folder;
+    public static String FLAWSPath = AWSApp.baseURL + "/output/" + FLFolder;
 
 
     public static class MapperClass extends Mapper<LongWritable, Text, WordAndTagKey, LongWritable> {
@@ -100,12 +99,12 @@ public class Job1 {
             Path outputFilePath = new Path(FLLocalPath, "part-" + context.getTaskAttemptID());
             FileSystem fs = FileSystem.get(context.getConfiguration());
 
-//            if (!isLocal) {
-//                outputFilePath = new Path(CalculateC0AppPath, "part-" + context.getTaskAttemptID());
-//                try {
-//                    fs = FileSystem.get(new java.net.URI("s3a://" + AWSApp.bucketName), new Configuration());
-//                } catch (URISyntaxException ignored) {};
-//            }
+            if (!AWSApp.isLocal) {
+                outputFilePath = new Path(FLAWSPath, "part-" + context.getTaskAttemptID());
+                try {
+                    fs = FileSystem.get(new java.net.URI("s3a://" + AWSApp.bucketName), new Configuration());
+                } catch (URISyntaxException ignored) {};
+            }
 
             FSDataOutputStream outStream = fs.create(outputFilePath, context);
             out = outStream;
@@ -202,15 +201,22 @@ public class Job1 {
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(Text.class);
 
-        if (isLocal) {
+        if (AWSApp.isLocal) {
+            // test input with http
+//            job.setInputFormatClass(SequenceFileInputFormat.class); // Added to be able to parse the ngrams records correctly
+//            FileInputFormat.addInputPath(job, new Path("http://commondatastorage.googleapis.com/books/syntactic-ngrams/eng/biarcs.00-of-99.gz"));
+
             FileInputFormat.addInputPath(job, new Path("hdfs://localhost:9000/user/hdoop/input/ngrams.txt"));
             FileOutputFormat.setOutputPath(job, new Path("hdfs://localhost:9000/user/hdoop/output/out1"));
         }
         else {
-            System.out.println("not implemented");
-//            FileInputFormat.addInputPath(job, new Path(AWSApp.baseURL + "/output/out0/part*"));
-//            FileInputFormat.addInputPath(job, new Path(Job1.CalculateC0AppPath + "/part*"));
-//            FileOutputFormat.setOutputPath(job, new Path(AWSApp.baseURL + "/output/out1"));
+            if (AWSApp.useCustomNgrams) {
+                FileInputFormat.addInputPath(job, new Path(AWSApp.baseURL + "/input/ngrams.txt"));
+                FileOutputFormat.setOutputPath(job, new Path(AWSApp.baseURL + "/output/out1"));
+            }
+            else {
+                System.out.println("not implemented");
+            }
         }
         System.exit(job.waitForCompletion(true) ? 0 : 1);
     }

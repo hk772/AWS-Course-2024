@@ -16,6 +16,7 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -24,6 +25,7 @@ import java.util.stream.Collectors;
 
 public class Job3 {
     private static final String GoldStandardLocalPath = "hdfs://localhost:9000/user/hdoop/input/word-relatedness.txt";
+    private static final String GoldStandardAWSPath = AWSApp.baseURL + "/input/word-relatedness.txt";
 
     public static class MapperClass extends Mapper<LongWritable, Text, TwoWordsAndFeatureKey, WordAndTagKey> {
         private Stemmer s = new Stemmer();
@@ -36,12 +38,12 @@ public class Job3 {
 
             // load file
             FileSystem fs = FileSystem.get(conf);
-//            if (!Job1.isLocal) {
-//                filePath = new Path(JobC0.C0AppPath);
-//                try {
-//                    fs = FileSystem.get(new java.net.URI(AWSApp.baseURL), new Configuration());
-//                } catch (URISyntaxException ignored) {};
-//            }
+            if (!AWSApp.isLocal) {
+                filePath = new Path(GoldStandardAWSPath);
+                try {
+                    fs = FileSystem.get(new java.net.URI(AWSApp.baseURL), new Configuration());
+                } catch (URISyntaxException ignored) {};
+            }
 
             try (FSDataInputStream fsDataInputStream = fs.open(filePath);
                  BufferedReader reader = new BufferedReader(new InputStreamReader(fsDataInputStream, StandardCharsets.UTF_8))) {
@@ -267,15 +269,18 @@ public class Job3 {
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(Text.class);
 
-        if (Job1.isLocal) {
+        if (AWSApp.isLocal) {
             FileInputFormat.addInputPath(job, new Path("hdfs://localhost:9000/user/hdoop/output/out2/part*"));
             FileOutputFormat.setOutputPath(job, new Path("hdfs://localhost:9000/user/hdoop/output/out3"));
         }
         else {
-            System.out.println("not implemented");
-//            FileInputFormat.addInputPath(job, new Path(AWSApp.baseURL + "/output/out0/part*"));
-//            FileInputFormat.addInputPath(job, new Path(Job1.CalculateC0AppPath + "/part*"));
-//            FileOutputFormat.setOutputPath(job, new Path(AWSApp.baseURL + "/output/out1"));
+            if (AWSApp.useCustomNgrams) {
+                FileInputFormat.addInputPath(job, new Path(AWSApp.baseURL + "/output/out2/part*"));
+                FileOutputFormat.setOutputPath(job, new Path(AWSApp.baseURL + "/output/out3"));
+            }
+            else {
+                System.out.println("not implemented");
+            }
         }
         System.exit(job.waitForCompletion(true) ? 0 : 1);
     }
