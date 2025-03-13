@@ -1,0 +1,3 @@
+These are the cooccurrence vectors, I guess, and it was way too big (over 600MB and across 10 files)
+So here's a download link to the compressed file containing all of them:
+https://drive.google.com/file/d/1GekEV2EKv9zXZUXXFrMnQ0E4Y0AdX_B4/view?usp=sharing

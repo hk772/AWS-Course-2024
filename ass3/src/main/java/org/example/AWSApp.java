@@ -17,10 +17,10 @@ public class AWSApp {
     public static AmazonEC2 ec2;
     public static AmazonElasticMapReduce emr;
 
-    public static int numberOfInstances = 2;
+    public static int numberOfInstances = 7;
     private static String region = "us-west-2";
 //    private static String region = "us-east-1";
-    public static String bucketName = "my-bucket-mevuzarot-ass2-asd";
+    public static String bucketName = "my-bucket-mevuzarot-ass3-asd";
     private static String jarName = "ass3.jar";
 //    private static String jarName = "ass3local.jar";
     public static boolean isLocal = false;
@@ -30,7 +30,7 @@ public class AWSApp {
         tenPercent,
         fullCorpus
     }
-    public static Percentage corpusPercentage = Percentage.onePercent; // swap corpus percentage here (1% / 10% / 100%)
+    public static Percentage corpusPercentage = Percentage.fullCorpus; // swap corpus percentage here (1% / 10% / 100%)
     public static final int NUM_CORPUS_FILES = 99;
 
     public static String baseURL = "s3://" + bucketName;
