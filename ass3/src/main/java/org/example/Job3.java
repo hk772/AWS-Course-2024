@@ -252,7 +252,7 @@ public class Job3 {
     public static class PartitionerClass extends Partitioner<TwoWordsAndFeatureKey, WordAndTagKey> {
         @Override
         public int getPartition(TwoWordsAndFeatureKey key, WordAndTagKey value, int numPartitions) {
-            return (key.hashCode() & Integer.MAX_VALUE) % numPartitions;
+            return (key.getW1W2().hashCode() & Integer.MAX_VALUE) % numPartitions;
         }
     }
 

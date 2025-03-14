@@ -76,7 +76,7 @@ public class TwoWordsAndFeatureKey implements WritableComparable<TwoWordsAndFeat
 
     @Override
     public int hashCode() {
-        return (w1 + " " + w2).hashCode();
+        return (w1 + " " + w2 + " " + feature).hashCode();
     }
 
     public static void main(String[] args) {
