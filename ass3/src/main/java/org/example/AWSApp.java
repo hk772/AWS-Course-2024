@@ -17,7 +17,7 @@ public class AWSApp {
     public static AmazonEC2 ec2;
     public static AmazonElasticMapReduce emr;
 
-    public static int numberOfInstances = 7;
+    public static int numberOfInstances = 1;
     private static String region = "us-west-2";
 //    private static String region = "us-east-1";
     public static String bucketName = "my-bucket-mevuzarot-ass3-asd";

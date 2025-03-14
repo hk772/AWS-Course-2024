@@ -94,6 +94,9 @@ public class WordAndTagKey implements WritableComparable<WordAndTagKey> {
         else if (tag.equals(Job1.L_Tag) || tag.equals(Job1.F_Tag)){
             l1 = tag.toString();
         }
+        if (tag.equals(Job2.feature_Tag) || tag.equals(Job2.out_Tag)) {
+            l1 = l1 + " " + tag;
+        }
         return l1.hashCode();
     }
 

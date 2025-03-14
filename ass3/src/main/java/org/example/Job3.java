@@ -150,6 +150,12 @@ public class Job3 {
 
             // calc according to val1 and val2, add to summaries
             for (int i = 0; i < NUM_ASSOC; i++) {
+//                if (Double.isNaN(assoc1[i])) {
+//                    assoc1[i] = 0.0;
+//                }
+//                if (Double.isNaN(assoc2[i])) {
+//                    assoc2[i] = 0.0;
+//                }
                 sums[SUM_MANHATTAN][i] += Math.abs(assoc1[i] - assoc2[i]);
                 sums[SUM_EUCLID][i] += Math.pow(assoc1[i] - assoc2[i], 2);
                 sums[SUM_MULT][i] += assoc1[i] * assoc2[i];

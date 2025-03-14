@@ -215,7 +215,7 @@ public class Job2 {
     public static class PartitionerClass extends Partitioner<WordAndTagKey, Text> {
         @Override
         public int getPartition(WordAndTagKey key, Text value, int numPartitions) {
-            return (key.hashCode() & Integer.MAX_VALUE) % numPartitions;
+            return (key.getW1().toString().hashCode() & Integer.MAX_VALUE) % numPartitions;
         }
     }
 
