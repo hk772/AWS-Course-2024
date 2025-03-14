@@ -29,6 +29,8 @@ public class Job2 {
         @Override
         public void map(LongWritable lineId, Text line, Context context) throws IOException,  InterruptedException {
             String[] parts = line.toString().split("\t");
+            if (!Character.isLetter(line.toString().charAt(0)))
+                return;
             if (parts.length == 2) {
                 // line from out1
                 String feature = parts[0].split(" ")[1];
