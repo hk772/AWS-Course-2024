@@ -35,6 +35,8 @@ public class Job1 {
         @Override
         public void map(LongWritable lineId, Text line, Context context) throws IOException,  InterruptedException {
             String[] parts = line.toString().split("\t");
+            if (!Character.isLetter(line.toString().charAt(0)))
+                return;
             String lex = parts[0];
             lex = s.stemWord(lex); // deactivate stemm
 
@@ -54,16 +56,18 @@ public class Job1 {
 
             //find root index
             for (int i=0; i < archs.length; i++) {
-                String[] subArchs = archs[i].split("/");
-                int headIndex;
-                try {
-                    headIndex = Integer.parseInt(subArchs[3]);
-                } catch (NumberFormatException e) {
-                    return;
-                }
-                if (headIndex == 0) {
-                    rootIndex = i+1;
-                    break;
+                if (Character.isLetter(archs[i].charAt(0))) {
+                    String[] subArchs = archs[i].split("/");
+                    int headIndex;
+                    try {
+                        headIndex = Integer.parseInt(subArchs[3]);
+                    } catch (NumberFormatException e) {
+                        return;
+                    }
+                    if (headIndex == 0) {
+                        rootIndex = i + 1;
+                        break;
+                    }
                 }
             }
 //            System.out.println("root index for line: " + rootIndex);
@@ -71,23 +75,25 @@ public class Job1 {
             int num_feature = 0;
             int i = 1;
             for (String arch : archs) {
-                String[] subArchs = arch.split("/");
-                int headIndex;
-                try {
-                    headIndex = Integer.parseInt(subArchs[3]);
-                } catch (NumberFormatException e) {
-                    return;
-                }
-                if (headIndex == rootIndex) {
-                    num_feature++;
-                    String word = subArchs[0];
-                    word = s.stemWord(word);    // deactivate stemm
-                    String feature = word + "-" + subArchs[2];
+                if (Character.isLetter(arch.charAt(0))) {
+                    String[] subArchs = arch.split("/");
+                    int headIndex;
+                    try {
+                        headIndex = Integer.parseInt(subArchs[3]);
+                    } catch (NumberFormatException e) {
+                        return;
+                    }
+                    if (headIndex == rootIndex) {
+                        String word = subArchs[0];
+                        num_feature++;
+                        word = s.stemWord(word);    // deactivate stemm
+                        String feature = word + "-" + subArchs[2];
 
-                    WordAndTagKey key = new WordAndTagKey(new Text(lex + " " + feature), Pair_Tag);
-                    context.write(key, count);
-                    System.out.println("feature index: " + i);
-                    System.out.println("key: " + key.getW1() + " count: " + count_long);
+                        WordAndTagKey key = new WordAndTagKey(new Text(lex + " " + feature), Pair_Tag);
+                        context.write(key, count);
+                        System.out.println("feature index: " + i);
+                        System.out.println("key: " + key.getW1() + " count: " + count_long);
+                    }
                 }
                 i++;
             }

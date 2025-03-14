@@ -29,61 +29,13 @@ public class Job2 {
         @Override
         public void map(LongWritable lineId, Text line, Context context) throws IOException,  InterruptedException {
             String[] parts = line.toString().split("\t");
-            if (!Character.isLetter(line.toString().charAt(0)))
-                return;
-            if (parts.length == 2) {
-                // line from out1
-                String feature = parts[0].split(" ")[1];
-                WordAndTagKey key = new WordAndTagKey(new Text(feature), new Text(out_Tag));
-                context.write(key, line);
+            String feature = parts[0].split(" ")[1];
+            String count_lf = parts[1].split(" ")[0];
+            WordAndTagKey key = new WordAndTagKey(new Text(feature), new Text(out_Tag));
+            context.write(key, line);
 
-            }else{
-                // corpus line
-                Text count = new Text(parts[2].trim());
-
-                String[] archs = parts[1].split(" ");
-                int rootIndex = -1;
-
-                //find root index
-                for (int i=0; i < archs.length; i++) {
-                    String[] subArchs = archs[i].split("/");
-                    int headIndex;
-                    try {
-                        headIndex = Integer.parseInt(subArchs[3]);
-                    } catch (NumberFormatException e) {
-                        return;
-                    }
-                    if (headIndex == 0) {
-                        rootIndex = i+1;
-                        break;
-                    }
-                }
-                System.out.println("root index for line: " + rootIndex);
-
-                int i = 1;
-                for (String arch : archs) {
-                    String[] subArchs = arch.split("/");
-                    int headIndex;
-                    try {
-                        headIndex = Integer.parseInt(subArchs[3]);
-                    } catch (NumberFormatException e) {
-                        return;
-                    }
-                    if (headIndex == rootIndex) {
-                        String word = subArchs[0];
-                        word = s.stemWord(word);    // deactivate stemm
-                        String feature = word + "-" + subArchs[2];
-
-                        WordAndTagKey key = new WordAndTagKey(new Text(feature), new Text(feature_Tag));
-                        context.write(key, count);
-                        System.out.println("feature index: " + i);
-                        System.out.println("key: " + key.getW1() + " count: " + count);
-                    }
-                    i++;
-                }
-
-            }
-
+            WordAndTagKey key2 = new WordAndTagKey(new Text(feature), new Text(feature_Tag));
+            context.write(key2, new Text(count_lf));
         }
     }
 
@@ -246,38 +198,38 @@ public class Job2 {
         job.setOutputValueClass(Text.class);
 
         if (AWSApp.isLocal) {
-            FileInputFormat.addInputPath(job, new Path("hdfs://localhost:9000/user/hdoop/input/ngrams.txt"));
+//            FileInputFormat.addInputPath(job, new Path("hdfs://localhost:9000/user/hdoop/input/ngrams.txt"));
             FileInputFormat.addInputPath(job, new Path("hdfs://localhost:9000/user/hdoop/output/out1/part*"));
             FileOutputFormat.setOutputPath(job, new Path("hdfs://localhost:9000/user/hdoop/output/out2"));
         } else {
             FileInputFormat.addInputPath(job, new Path(AWSApp.baseURL + "/output/out1/part*"));
-            if (AWSApp.useCustomNgrams) {
-                FileInputFormat.addInputPath(job, new Path(AWSApp.baseURL + "/input/ngrams.txt"));
-                FileOutputFormat.setOutputPath(job, new Path(AWSApp.baseURL + "/output/out2"));
-            } else {
-                FileOutputFormat.setOutputPath(job, new Path(AWSApp.baseURL + "/output/out2"));
-//                job.setInputFormatClass(SequenceFileInputFormat.class); // Added to be able to parse the ngrams records correctly
-
-                if (AWSApp.corpusPercentage == AWSApp.Percentage.onePercent) {
-                    FileInputFormat.addInputPath(job, new Path(AWSApp.baseURL + "/input/biarcs.00-of-99.txt"));
-                }
-                else if (AWSApp.corpusPercentage == AWSApp.Percentage.tenPercent) {
-                    for (int i=0; i<10; i++) {
-                        FileInputFormat.addInputPath(job, new Path(AWSApp.baseURL + "/input/biarcs.0" + i + "-of-99.txt"));
-                    }
-                }
-                else if (AWSApp.corpusPercentage == AWSApp.Percentage.fullCorpus) {
-                    for (int i=0; i<10; i++) {
-                        FileInputFormat.addInputPath(job, new Path(AWSApp.baseURL + "/input/biarcs.0" + i + "-of-99.txt"));
-                    }
-                    for (int i=10; i<AWSApp.NUM_CORPUS_FILES; i++) {
-                        FileInputFormat.addInputPath(job, new Path(AWSApp.baseURL + "/input/biarcs." + i + "-of-99.txt"));
-                    }
-                }
-                else {
-                    System.out.println("not implemented");
-                }
-            }
+            FileOutputFormat.setOutputPath(job, new Path(AWSApp.baseURL + "/output/out2"));
+//            if (AWSApp.useCustomNgrams) {
+//                FileInputFormat.addInputPath(job, new Path(AWSApp.baseURL + "/input/ngrams.txt"));
+//            } else {
+//                FileOutputFormat.setOutputPath(job, new Path(AWSApp.baseURL + "/output/out2"));
+////                job.setInputFormatClass(SequenceFileInputFormat.class); // Added to be able to parse the ngrams records correctly
+//
+//                if (AWSApp.corpusPercentage == AWSApp.Percentage.onePercent) {
+//                    FileInputFormat.addInputPath(job, new Path(AWSApp.baseURL + "/input/biarcs.00-of-99.txt"));
+//                }
+//                else if (AWSApp.corpusPercentage == AWSApp.Percentage.tenPercent) {
+//                    for (int i=0; i<10; i++) {
+//                        FileInputFormat.addInputPath(job, new Path(AWSApp.baseURL + "/input/biarcs.0" + i + "-of-99.txt"));
+//                    }
+//                }
+//                else if (AWSApp.corpusPercentage == AWSApp.Percentage.fullCorpus) {
+//                    for (int i=0; i<10; i++) {
+//                        FileInputFormat.addInputPath(job, new Path(AWSApp.baseURL + "/input/biarcs.0" + i + "-of-99.txt"));
+//                    }
+//                    for (int i=10; i<AWSApp.NUM_CORPUS_FILES; i++) {
+//                        FileInputFormat.addInputPath(job, new Path(AWSApp.baseURL + "/input/biarcs." + i + "-of-99.txt"));
+//                    }
+//                }
+//                else {
+//                    System.out.println("not implemented");
+//                }
+//            }
             System.exit(job.waitForCompletion(true) ? 0 : 1);
         }
 
