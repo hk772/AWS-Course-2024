@@ -26,7 +26,7 @@ public class TwoWordsAndFeatureKey implements WritableComparable<TwoWordsAndFeat
     }
 
     public void setW2(Text w2) {
-        this.w2 = w1;
+        this.w2 = w2;
     }
 
     public void setFeature(Text feature) {

@@ -29,13 +29,16 @@ public class Job1 {
     public static String FLAWSPath = AWSApp.baseURL + "/output/" + FLFolder;
 
 
-    public static class MapperClass extends Mapper<LongWritable, Text, WordAndTagKey, LongWritable> {
+    public static class MapperClass extends Mapper<LongWritable, Text, Job1Key, LongWritable> {
         Stemmer s = new Stemmer();
 
         @Override
         public void map(LongWritable lineId, Text line, Context context) throws IOException,  InterruptedException {
             String[] parts = line.toString().split("\t");
+            if (!Character.isLetter(line.toString().charAt(0)))
+                return;
             String lex = parts[0];
+            System.out.println("lexeme: " + lex);
             lex = s.stemWord(lex); // deactivate stemm
 
             long count_long = Long.parseLong(parts[2]);
@@ -44,26 +47,28 @@ public class Job1 {
             String[] archs = parts[1].split(" ");
             int rootIndex = -1;
 
-            WordAndTagKey key1 = new WordAndTagKey(new Text(lex), Lex_Tag);
+            Job1Key key1 = new Job1Key(new Text(lex), Lex_Tag);
             context.write(key1, count);
 //            System.out.println("lex_tag key: " + key1.getW1() + " count: " + count_long);
 
-            WordAndTagKey key3 = new WordAndTagKey(new Text(""), L_Tag);
+            Job1Key key3 = new Job1Key(new Text(""), L_Tag);
             context.write(key3, count);
 //            System.out.println("L_tag key: " + key3.getW1() + " count: " + count_long);
 
             //find root index
             for (int i=0; i < archs.length; i++) {
-                String[] subArchs = archs[i].split("/");
-                int headIndex;
-                try {
-                    headIndex = Integer.parseInt(subArchs[3]);
-                } catch (NumberFormatException e) {
-                    return;
-                }
-                if (headIndex == 0) {
-                    rootIndex = i+1;
-                    break;
+                if (!archs[i].isEmpty() &&Character.isLetter(archs[i].charAt(0))) {
+                    String[] subArchs = archs[i].split("/");
+                    int headIndex;
+                    try {
+                        headIndex = Integer.parseInt(subArchs[3]);
+                    } catch (NumberFormatException e) {
+                        return;
+                    }
+                    if (headIndex == 0) {
+                        rootIndex = i + 1;
+                        break;
+                    }
                 }
             }
 //            System.out.println("root index for line: " + rootIndex);
@@ -71,35 +76,37 @@ public class Job1 {
             int num_feature = 0;
             int i = 1;
             for (String arch : archs) {
-                String[] subArchs = arch.split("/");
-                int headIndex;
-                try {
-                    headIndex = Integer.parseInt(subArchs[3]);
-                } catch (NumberFormatException e) {
-                    return;
-                }
-                if (headIndex == rootIndex) {
-                    num_feature++;
-                    String word = subArchs[0];
-                    word = s.stemWord(word);    // deactivate stemm
-                    String feature = word + "-" + subArchs[2];
+                if (!arch.isEmpty() && Character.isLetter(arch.charAt(0))) {
+                    String[] subArchs = arch.split("/");
+                    int headIndex;
+                    try {
+                        headIndex = Integer.parseInt(subArchs[3]);
+                    } catch (NumberFormatException e) {
+                        return;
+                    }
+                    if (headIndex == rootIndex) {
+                        num_feature++;
+                        String word = subArchs[0];
+                        word = s.stemWord(word);    // deactivate stemm
+                        String feature = word + "-" + subArchs[2];
 
-                    WordAndTagKey key = new WordAndTagKey(new Text(lex + " " + feature), Pair_Tag);
-                    context.write(key, count);
-                    System.out.println("feature index: " + i);
-                    System.out.println("key: " + key.getW1() + " count: " + count_long);
+                        Job1Key key = new Job1Key(new Text(lex + " " + feature), Pair_Tag);
+                        context.write(key, count);
+                        System.out.println("feature index: " + i);
+                        System.out.println("key: " + key.getW1() + " count: " + count_long);
+                    }
                 }
                 i++;
             }
 
-            WordAndTagKey key2 = new WordAndTagKey(new Text(""), F_Tag);
+            Job1Key key2 = new Job1Key(new Text(""), F_Tag);
             context.write(key2, new LongWritable(num_feature * count_long));
             System.out.println("F_tag key: " + key2.getTag() + " count: " + num_feature * count_long);
         }
     }
 
 
-    public static class ReducerClass extends Reducer<WordAndTagKey, LongWritable, Text, Text> {
+    public static class ReducerClass extends Reducer<Job1Key, LongWritable, Text, Text> {
         private String cur_l = "";
         private long cur_l_count = 0;
 
@@ -135,7 +142,7 @@ public class Job1 {
         }
 
         @Override
-        public void reduce(WordAndTagKey key, Iterable<LongWritable> vals, Context context) throws IOException, InterruptedException {
+        public void reduce(Job1Key key, Iterable<LongWritable> vals, Context context) throws IOException, InterruptedException {
             System.out.println("reduce: key: " + key.getW1() + " tag: " + key.getTag());
 
             if (key.getTag().equals(Lex_Tag)) {
@@ -168,9 +175,9 @@ public class Job1 {
     }
 
 
-    public static class CombinerClass extends Reducer<WordAndTagKey, LongWritable, WordAndTagKey, LongWritable> {
+    public static class CombinerClass extends Reducer<Job1Key, LongWritable, Job1Key, LongWritable> {
         @Override
-        public void reduce(WordAndTagKey key, Iterable<LongWritable> vals, Context context) throws IOException,  InterruptedException {
+        public void reduce(Job1Key key, Iterable<LongWritable> vals, Context context) throws IOException,  InterruptedException {
             long count = 0;
             for (LongWritable v : vals) {
                 count += v.get();
@@ -181,10 +188,24 @@ public class Job1 {
     }
 
 
-    public static class PartitionerClass extends Partitioner<WordAndTagKey, LongWritable> {
+    public static class PartitionerClass extends Partitioner<Job1Key, LongWritable> {
         @Override
-        public int getPartition(WordAndTagKey key, LongWritable value, int numPartitions) {
-            return (key.hashCode() & Integer.MAX_VALUE) % numPartitions;
+        public int getPartition(Job1Key key, LongWritable value, int numPartitions) {
+            String[] parts = key.getW1().toString().split(" ");
+            String tag = key.getTag().toString();
+
+            int hash = 0;
+            if (tag.equals(Pair_Tag.toString())){
+                hash = parts[0].hashCode();
+            } else if (tag.equals(Lex_Tag.toString())) {
+                hash = parts[0].hashCode();
+            } else if (tag.equals(L_Tag.toString())) {
+                hash = tag.hashCode();
+            } else if (tag.equals(F_Tag.toString())) {
+                hash = tag.hashCode();
+            }
+
+            return (hash & Integer.MAX_VALUE) % numPartitions;
         }
     }
 
@@ -207,7 +228,7 @@ public class Job1 {
         job.setCombinerClass(CombinerClass.class);
         job.setReducerClass(ReducerClass.class);
 
-        job.setMapOutputKeyClass(WordAndTagKey.class);
+        job.setMapOutputKeyClass(Job1Key.class);
         job.setMapOutputValueClass(LongWritable.class);
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(Text.class);
