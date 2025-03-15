@@ -1,0 +1,5 @@
+These are the cooccurrence vectors *between lexemes and their features*, therefore we provided separate download links.
+for the cooccurrence vectors between *lexeme and lexeme* (final output) check the other .csv files.
+Here's a download link to the compressed file containing all the lexeme-features cooccurrence vectors:
+10-percent:  https://drive.google.com/file/d/1KMrwdn3w9JYqq7HH3aGoyPwakoXKjP_o/view?usp=drive_link
+100-percent: https://drive.google.com/file/d/1fI5I44pVZcrj7tE8bNBTFXRGe1XXY2T_/view?usp=sharing
