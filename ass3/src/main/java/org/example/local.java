@@ -33,8 +33,8 @@ public class local {
 
 
 
-        String folderPath = "outputs/out-100percent/out3";
-        String outputFilePath = "outputs/out-100percent/combined.csv";
+        String folderPath = "outputs/10percent_new/out3";
+        String outputFilePath = "outputs/10percent_new/combined10percent.csv";
 
         File folder = new File(folderPath);
         if (!folder.exists() || !folder.isDirectory()) {
