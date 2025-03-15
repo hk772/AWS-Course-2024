@@ -41,10 +41,6 @@ public class Job1Key implements WritableComparable<Job1Key> {
         String l1 = w1.toString();
         String l2 = o.w1.toString();
 
-
-
-
-
         if (tag.equals(Job1.L_Tag) || tag.equals(Job1.F_Tag))
             l1 = tag.toString();
         if (o.tag.equals(Job1.L_Tag) || o.tag.equals(Job1.F_Tag))

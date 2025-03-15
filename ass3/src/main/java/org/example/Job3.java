@@ -14,6 +14,7 @@ import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.math.BigDecimal;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -108,7 +109,7 @@ public class Job3 {
         private final int SUM_JS = 8; // equation (17)
         private final int NUM_SUMS = 9;
         private final int NUM_ASSOC = 4;
-        private double[][] sums = new double[NUM_SUMS][NUM_ASSOC];
+        private BigDecimal[][] sums = new BigDecimal[NUM_SUMS][NUM_ASSOC];
 
         private Double[] assoc1 = new Double[NUM_ASSOC];
         private Double[] assoc2 = new Double[NUM_ASSOC];
@@ -145,7 +146,7 @@ public class Job3 {
                 Text distances = calc_distances(); // 24 values of all possible distances with all possible assocs
                 System.out.println("sent from reducer: key: " + k.toString() + " value: " + distances);
                 context.write(k, distances);
-                sums = new double[NUM_SUMS][NUM_ASSOC];
+                sums = new BigDecimal[NUM_SUMS][NUM_ASSOC];
             }
 
             // calc according to val1 and val2, add to summaries
@@ -156,19 +157,19 @@ public class Job3 {
 //                if (Double.isNaN(assoc2[i])) {
 //                    assoc2[i] = 0.0;
 //                }
-                sums[SUM_MANHATTAN][i] += Math.abs(assoc1[i] - assoc2[i]);
-                sums[SUM_EUCLID][i] += Math.pow(assoc1[i] - assoc2[i], 2);
-                sums[SUM_MULT][i] += assoc1[i] * assoc2[i];
-                sums[SUM_LI1_SQUARED][i] += Math.pow(assoc1[i], 2);
-                sums[SUM_LI2_SQUARED][i] += Math.pow(assoc2[i], 2);
-                sums[SUM_MIN][i] += Math.min(assoc1[i], assoc2[i]);
-                sums[SUM_MAX][i] += Math.max(assoc1[i], assoc2[i]);
-                sums[SUM_ADD][i] += assoc1[i] + assoc2[i]; // need to verify this
+                sums[SUM_MANHATTAN][i] = sums[SUM_MANHATTAN][i].add(BigDecimal.valueOf(Math.abs(assoc1[i] - assoc2[i])));
+                sums[SUM_EUCLID][i] = sums[SUM_EUCLID][i].add(BigDecimal.valueOf(Math.pow(assoc1[i] - assoc2[i], 2)));
+                sums[SUM_MULT][i] = sums[SUM_MULT][i].add(BigDecimal.valueOf(assoc1[i] * assoc2[i]));
+                sums[SUM_LI1_SQUARED][i] = sums[SUM_LI1_SQUARED][i].add(BigDecimal.valueOf(Math.pow(assoc1[i], 2)));
+                sums[SUM_LI2_SQUARED][i] = sums[SUM_LI2_SQUARED][i].add(BigDecimal.valueOf(Math.pow(assoc2[i], 2)));
+                sums[SUM_MIN][i] = sums[SUM_MIN][i].add(BigDecimal.valueOf(Math.min(assoc1[i], assoc2[i])));
+                sums[SUM_MAX][i] = sums[SUM_MAX][i].add(BigDecimal.valueOf(Math.max(assoc1[i], assoc2[i])));
+                sums[SUM_ADD][i] = sums[SUM_ADD][i].add(BigDecimal.valueOf(assoc1[i] + assoc2[i])); // need to verify this
                 double term1 = ((double) 2 * assoc1[i] / (assoc1[i] + assoc2[i]));
                 term1 = assoc1[i] * Job2.log2(term1);
                 double term2 = ((double) 2 * assoc2[i] / (assoc1[i] + assoc2[i]));
                 term2 = assoc2[i] * Job2.log2(term2);
-                sums[SUM_JS][i] += term1 + term2;
+                sums[SUM_JS][i] = sums[SUM_JS][i].add(BigDecimal.valueOf(term1 + term2));
             }
 
             currentW1W2 = key.getW1W2();
@@ -176,25 +177,25 @@ public class Job3 {
 
         private Text calc_distances() {
             // use the assoc1 and assoc2 arrays of the last w1-w2 pair?
-            String dist_manhattan_string = String.join(" ", Arrays.stream(sums[SUM_MANHATTAN]).mapToObj(String::valueOf).collect(Collectors.toList()));
-            String dist_euclid_string = String.join(" ", Arrays.stream(sums[SUM_EUCLID]).mapToObj(x -> String.valueOf(Math.sqrt(x))).collect(Collectors.toList()));
+            String dist_manhattan_string = String.join(" ", Arrays.stream(sums[SUM_MANHATTAN]).map(x -> String.valueOf(x.doubleValue())).collect(Collectors.toList()));
+            String dist_euclid_string = String.join(" ", Arrays.stream(sums[SUM_EUCLID]).map(x -> String.valueOf(Math.sqrt(x.doubleValue()))).collect(Collectors.toList()));
             double[] dist_cos_sim = new double[NUM_ASSOC];
             for (int i = 0; i < dist_cos_sim.length; i++) {
-                dist_cos_sim[i] = (sums[SUM_MULT][i]) / (Math.sqrt(sums[SUM_LI1_SQUARED][i]) * Math.sqrt(sums[SUM_LI2_SQUARED][i]));
+                dist_cos_sim[i] = (sums[SUM_MULT][i].doubleValue()) / (Math.sqrt(sums[SUM_LI1_SQUARED][i].doubleValue()) * Math.sqrt(sums[SUM_LI2_SQUARED][i].doubleValue()));
             }
             String dist_cos_sim_string = String.join(" ", Arrays.stream(dist_cos_sim).mapToObj(String::valueOf).collect(Collectors.toList()));
             double[] dist_jaccard_sim = new double[NUM_ASSOC];
             for (int i = 0; i < dist_jaccard_sim.length; i++) {
-                dist_jaccard_sim[i] = (sums[SUM_MIN][i]) / (sums[SUM_MAX][i]);
+                dist_jaccard_sim[i] = (sums[SUM_MIN][i].doubleValue()) / (sums[SUM_MAX][i].doubleValue());
             }
             String dist_jaccard_sim_string = String.join(" ", Arrays.stream(dist_jaccard_sim).mapToObj(String::valueOf).collect(Collectors.toList()));
 
             double[] dist_dice_sim = new double[NUM_ASSOC];
             for (int i = 0; i < dist_dice_sim.length; i++) {
-                dist_dice_sim[i] = 2 * (sums[SUM_MIN][i]) / (sums[SUM_ADD][i]);
+                dist_dice_sim[i] = 2 * (sums[SUM_MIN][i].doubleValue()) / (sums[SUM_ADD][i].doubleValue());
             }
             String dist_dice_sim_string = String.join(" ", Arrays.stream(dist_dice_sim).mapToObj(String::valueOf).collect(Collectors.toList()));
-            String dist_js_string = String.join(" ", Arrays.stream(sums[SUM_JS]).mapToObj(String::valueOf).collect(Collectors.toList()));
+            String dist_js_string = String.join(" ", Arrays.stream(sums[SUM_JS]).map(x -> String.valueOf(x.doubleValue())).collect(Collectors.toList()));
 
             String result = dist_manhattan_string + " " + dist_euclid_string + " " + dist_cos_sim_string + " " + dist_jaccard_sim_string + " " + dist_dice_sim_string + " " + dist_js_string;
             return new Text(result);
@@ -207,7 +208,7 @@ public class Job3 {
                 Text distances = calc_distances(); // 24 values of all possible distances with all possible assocs
                 System.out.println("sent from reducer: key: " + k.toString() + " value: " + distances);
                 context.write(k, distances);
-                sums = new double[NUM_SUMS][NUM_ASSOC]; // probably not necessary
+                sums = new BigDecimal[NUM_SUMS][NUM_ASSOC]; // probably not necessary
             } else {
                 System.out.println("Something wrong happened, cleanup executed before reduce");
             }
