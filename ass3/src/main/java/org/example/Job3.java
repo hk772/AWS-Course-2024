@@ -15,6 +15,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.math.BigDecimal;
+import java.math.MathContext;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -111,12 +112,15 @@ public class Job3 {
         private final int NUM_ASSOC = 4;
         private BigDecimal[][] sums = new BigDecimal[NUM_SUMS][NUM_ASSOC];
 
-        private Double[] assoc1 = new Double[NUM_ASSOC];
-        private Double[] assoc2 = new Double[NUM_ASSOC];
+        private BigDecimal[] assoc1 = new BigDecimal[NUM_ASSOC];
+        private BigDecimal[] assoc2 = new BigDecimal[NUM_ASSOC];
 
         @Override
         public void setup(Reducer.Context context) throws IOException, InterruptedException {
             context.write(new Text("w1,w2"), new Text("c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16,c17,c18,c19,c20,c21,c22,c23,c24"));
+            resetMatrix(sums);
+            resetArray(assoc1);
+            resetArray(assoc2);
         }
 
 
@@ -137,8 +141,11 @@ public class Job3 {
             System.out.println("received in reducer: key: " + key.getW1W2() + " " + key.getFeature() + " val1: " + val1.getW1() + " " + val1.getTag() + " val2: " + val2.getW1() + " " + val2.getTag());
 
             // extract the assoc values for each word
-            assoc1 = Arrays.stream(val1.getW1().toString().split(" ")).map(Double::parseDouble).collect(Collectors.toList()).toArray(assoc1);
-            assoc2 = Arrays.stream(val2.getW1().toString().split(" ")).map(Double::parseDouble).collect(Collectors.toList()).toArray(assoc2);
+            assoc1 = Arrays.stream(val1.getW1().toString().split(" ")).map(x -> BigDecimal.valueOf(Double.parseDouble(x))).collect(Collectors.toList()).toArray(assoc1);
+            assoc2 = Arrays.stream(val2.getW1().toString().split(" ")).map(x -> BigDecimal.valueOf(Double.parseDouble(x))).collect(Collectors.toList()).toArray(assoc2);
+
+            System.out.println("assoc1: " + Arrays.toString(assoc1));
+            System.out.println("assoc2: " + Arrays.toString(assoc2));
 
             // emit all 24 values when the W1W2 pair swaps
             if (currentW1W2 != null && !key.getW1W2().equals(currentW1W2)) {
@@ -146,8 +153,12 @@ public class Job3 {
                 Text distances = calc_distances(); // 24 values of all possible distances with all possible assocs
                 System.out.println("sent from reducer: key: " + k.toString() + " value: " + distances);
                 context.write(k, distances);
-                sums = new BigDecimal[NUM_SUMS][NUM_ASSOC];
+//                sums = new BigDecimal[NUM_SUMS][NUM_ASSOC];
+                resetMatrix(sums);
             }
+
+            System.out.println("trying to sum up assocs in sums");
+            MathContext mc = new MathContext(10); // setting precision to 10 digits
 
             // calc according to val1 and val2, add to summaries
             for (int i = 0; i < NUM_ASSOC; i++) {
@@ -157,58 +168,97 @@ public class Job3 {
 //                if (Double.isNaN(assoc2[i])) {
 //                    assoc2[i] = 0.0;
 //                }
-                sums[SUM_MANHATTAN][i] = sums[SUM_MANHATTAN][i].add(BigDecimal.valueOf(Math.abs(assoc1[i] - assoc2[i])));
-                sums[SUM_EUCLID][i] = sums[SUM_EUCLID][i].add(BigDecimal.valueOf(Math.pow(assoc1[i] - assoc2[i], 2)));
-                sums[SUM_MULT][i] = sums[SUM_MULT][i].add(BigDecimal.valueOf(assoc1[i] * assoc2[i]));
-                sums[SUM_LI1_SQUARED][i] = sums[SUM_LI1_SQUARED][i].add(BigDecimal.valueOf(Math.pow(assoc1[i], 2)));
-                sums[SUM_LI2_SQUARED][i] = sums[SUM_LI2_SQUARED][i].add(BigDecimal.valueOf(Math.pow(assoc2[i], 2)));
-                sums[SUM_MIN][i] = sums[SUM_MIN][i].add(BigDecimal.valueOf(Math.min(assoc1[i], assoc2[i])));
-                sums[SUM_MAX][i] = sums[SUM_MAX][i].add(BigDecimal.valueOf(Math.max(assoc1[i], assoc2[i])));
-                sums[SUM_ADD][i] = sums[SUM_ADD][i].add(BigDecimal.valueOf(assoc1[i] + assoc2[i])); // need to verify this
-                double term1 = ((double) 2 * assoc1[i] / (assoc1[i] + assoc2[i]));
-                term1 = assoc1[i] * Job2.log2(term1);
-                double term2 = ((double) 2 * assoc2[i] / (assoc1[i] + assoc2[i]));
-                term2 = assoc2[i] * Job2.log2(term2);
-                sums[SUM_JS][i] = sums[SUM_JS][i].add(BigDecimal.valueOf(term1 + term2));
+                System.out.println("summing up assoc " + i);
+                sums[SUM_MANHATTAN][i] = sums[SUM_MANHATTAN][i].add(BigDecimal.valueOf(Math.abs(assoc1[i].subtract(assoc2[i]).doubleValue())));
+                sums[SUM_EUCLID][i] = sums[SUM_EUCLID][i].add((assoc1[i].subtract(assoc2[i]).pow(2)));
+                sums[SUM_MULT][i] = sums[SUM_MULT][i].add(assoc1[i].multiply(assoc2[i]));
+                sums[SUM_LI1_SQUARED][i] = sums[SUM_LI1_SQUARED][i].add(assoc1[i].pow(2));
+                sums[SUM_LI2_SQUARED][i] = sums[SUM_LI2_SQUARED][i].add(assoc2[i].pow(2));
+                sums[SUM_MIN][i] = sums[SUM_MIN][i].add(assoc1[i].min(assoc2[i]));
+                sums[SUM_MAX][i] = sums[SUM_MAX][i].add(assoc1[i].max(assoc2[i]));
+                sums[SUM_ADD][i] = sums[SUM_ADD][i].add(assoc1[i].add(assoc2[i])); // need to verify this
+                if (assoc1[i].add(assoc2[i]).compareTo(BigDecimal.valueOf(0)) == 0) {
+                    System.out.println("sum of assocs is zero, skipping jensen-shannon");
+                }
+                else {
+                    BigDecimal term1 = assoc1[i].multiply(BigDecimal.valueOf(2)).divide(assoc1[i].add(assoc2[i]),mc);
+                    System.out.println("term1 before log2: " + term1);
+                    if (term1.compareTo(BigDecimal.valueOf(0)) > 0) {
+                        term1 = assoc1[i].multiply(BigDecimal.valueOf(Job2.log2(term1.doubleValue())));
+                        System.out.println("term1 after log2: " + term1);
+                    }
+                    BigDecimal term2 = assoc2[i].multiply(BigDecimal.valueOf(2)).divide(assoc1[i].add(assoc2[i]),mc);
+                    System.out.println("term2 before log2: " + term2);
+                    if (term2.compareTo(BigDecimal.valueOf(0)) > 0) {
+                        term2 = assoc2[i].multiply(BigDecimal.valueOf(Job2.log2(term2.doubleValue())));
+                        System.out.println("term2 after log2: " + term2);
+                    }
+                    sums[SUM_JS][i] = sums[SUM_JS][i].add(term1.add(term2));
+                    System.out.println("finished summing up: " + term2);
+                }
             }
-
+            System.out.println("updating currentW1W2: " + currentW1W2 + " to -> " + key.getW1W2());
             currentW1W2 = key.getW1W2();
         }
 
         private Text calc_distances() {
+//            MathContext mc = new MathContext(10);
+            System.out.println("calculating distances");
             // use the assoc1 and assoc2 arrays of the last w1-w2 pair?
-            String dist_manhattan_string = String.join(" ", Arrays.stream(sums[SUM_MANHATTAN]).map(x -> String.valueOf(x.doubleValue())).collect(Collectors.toList()));
+            String dist_manhattan_string = String.join(" ", Arrays.stream(sums[SUM_MANHATTAN]).map(BigDecimal::toString).collect(Collectors.toList()));
             String dist_euclid_string = String.join(" ", Arrays.stream(sums[SUM_EUCLID]).map(x -> String.valueOf(Math.sqrt(x.doubleValue()))).collect(Collectors.toList()));
+            System.out.println("calculating dist_cos_sim");
             double[] dist_cos_sim = new double[NUM_ASSOC];
+            resetArray(dist_cos_sim,-1);
             for (int i = 0; i < dist_cos_sim.length; i++) {
-                dist_cos_sim[i] = (sums[SUM_MULT][i].doubleValue()) / (Math.sqrt(sums[SUM_LI1_SQUARED][i].doubleValue()) * Math.sqrt(sums[SUM_LI2_SQUARED][i].doubleValue()));
+                if (Math.sqrt(sums[SUM_LI1_SQUARED][i].doubleValue()) * (Math.sqrt(sums[SUM_LI2_SQUARED][i].doubleValue())) <= 0) {
+                    System.out.println("(sqrt(sum of li1^2)+sqrt(sum of li2^2)) is less or equal to 0, skipping dist_cos_sim");
+                    // default value of -1 instead of NaN
+                    continue;
+                }
+                dist_cos_sim[i] = sums[SUM_MULT][i].doubleValue() / (Math.sqrt(sums[SUM_LI1_SQUARED][i].doubleValue()) * (Math.sqrt(sums[SUM_LI2_SQUARED][i].doubleValue())));
             }
             String dist_cos_sim_string = String.join(" ", Arrays.stream(dist_cos_sim).mapToObj(String::valueOf).collect(Collectors.toList()));
+            System.out.println("calculating dist_jaccard_sim");
             double[] dist_jaccard_sim = new double[NUM_ASSOC];
+            resetArray(dist_jaccard_sim,-1);
             for (int i = 0; i < dist_jaccard_sim.length; i++) {
-                dist_jaccard_sim[i] = (sums[SUM_MIN][i].doubleValue()) / (sums[SUM_MAX][i].doubleValue());
+                if (sums[SUM_MAX][i].doubleValue() <= 0) {
+                    System.out.println("sum of max(li1,li2) is less or equal to 0, skipping dist_jaccard_sim");
+                    continue;
+                }
+                dist_jaccard_sim[i] = sums[SUM_MIN][i].doubleValue() / (sums[SUM_MAX][i].doubleValue());
             }
             String dist_jaccard_sim_string = String.join(" ", Arrays.stream(dist_jaccard_sim).mapToObj(String::valueOf).collect(Collectors.toList()));
 
+            System.out.println("calculating dist_dice_sim");
             double[] dist_dice_sim = new double[NUM_ASSOC];
+            resetArray(dist_dice_sim,-1);
             for (int i = 0; i < dist_dice_sim.length; i++) {
+                if (sums[SUM_ADD][i].doubleValue() <= 0) {
+                    System.out.println("sum of (li1+li2) is less or equal to 0, skipping dist_dice_sim");
+                    continue;
+                }
                 dist_dice_sim[i] = 2 * (sums[SUM_MIN][i].doubleValue()) / (sums[SUM_ADD][i].doubleValue());
             }
             String dist_dice_sim_string = String.join(" ", Arrays.stream(dist_dice_sim).mapToObj(String::valueOf).collect(Collectors.toList()));
-            String dist_js_string = String.join(" ", Arrays.stream(sums[SUM_JS]).map(x -> String.valueOf(x.doubleValue())).collect(Collectors.toList()));
+            String dist_js_string = String.join(" ", Arrays.stream(sums[SUM_JS]).map(BigDecimal::toString).collect(Collectors.toList()));
 
             String result = dist_manhattan_string + " " + dist_euclid_string + " " + dist_cos_sim_string + " " + dist_jaccard_sim_string + " " + dist_dice_sim_string + " " + dist_js_string;
+            System.out.println("finished calculating distances. result: " + result);
             return new Text(result);
         }
 
         @Override
         public void cleanup(Context context) throws IOException, InterruptedException {
+            System.out.println("cleanup called");
             if (currentW1W2 != null) {
                 Text k = new Text(currentW1W2);
                 Text distances = calc_distances(); // 24 values of all possible distances with all possible assocs
                 System.out.println("sent from reducer: key: " + k.toString() + " value: " + distances);
                 context.write(k, distances);
-                sums = new BigDecimal[NUM_SUMS][NUM_ASSOC]; // probably not necessary
+//                sums = new BigDecimal[NUM_SUMS][NUM_ASSOC]; // probably not necessary
+                resetMatrix(sums);
             } else {
                 System.out.println("Something wrong happened, cleanup executed before reduce");
             }
@@ -216,13 +266,25 @@ public class Job3 {
 
     }
 
-//    private static void resetMatrix(double[][] matrix) {
-//        for (int i=0; i<matrix.length; i++) {
-//            for (int j = 0; j < matrix[0].length; j++) {
-//                matrix[i][j] = 0;
-//            }
-//        }
-//    }
+    private static void resetMatrix(BigDecimal[][] matrix) {
+        for (int i=0; i<matrix.length; i++) {
+            for (int j = 0; j < matrix[0].length; j++) {
+                matrix[i][j] = BigDecimal.ZERO;
+            }
+        }
+    }
+
+    private static void resetArray(BigDecimal[] array) {
+        for (int i=0; i<array.length; i++) {
+            array[i] = BigDecimal.ZERO;
+        }
+    }
+
+    private static void resetArray(double[] array, double value) {
+        for (int i=0; i<array.length; i++) {
+            array[i] = value;
+        }
+    }
 
 
 //    public static class CombinerClass extends Reducer<WordTripletKey, WordAndTagKey, WordTripletKey, WordAndTagKey> {
