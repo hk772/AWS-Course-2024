@@ -159,7 +159,7 @@ public class Job3 {
                     }
                 }
             }
-            String[] assoc2Temps = val1.getW1().toString().split(" ");
+            String[] assoc2Temps = val2.getW1().toString().split(" ");
             for (int i = 0; i < NUM_ASSOC; i++) {
                 if (i <= 2) {
                     try {
