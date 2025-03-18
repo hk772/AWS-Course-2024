@@ -16,6 +16,8 @@ import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.math.BigDecimal;
+import java.math.MathContext;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 
@@ -106,6 +108,7 @@ public class Job2 {
         @Override
         public void reduce(Job2Key key, Iterable<Text> vals, Context context) throws IOException, InterruptedException {
             System.out.println("reduce: key: " + key.getW1() + " tag: " + key.getTag());
+            MathContext mc = new MathContext(10); // set the precision level to 10
 
             if (key.getTag().toString().equals(feature_Tag)) {
                 cur_f_count = 0;
@@ -125,10 +128,10 @@ public class Job2 {
                     double assoc2 = ((double)count_lf) / count_l;
                     double assoc3 = log2(((double)(count_lf * F))/(count_l * cur_f_count));
 
-                    double t1 = (count_lf * F) - (count_l * cur_f_count);
-                    double t2 = Math.sqrt(L) * Math.sqrt(count_l) * Math.sqrt(cur_f_count) * Math.sqrt(F);
+                    BigDecimal t1 = BigDecimal.valueOf(count_lf).multiply(BigDecimal.valueOf(F)).subtract(BigDecimal.valueOf(count_l).multiply(BigDecimal.valueOf(cur_f_count)));
+                    BigDecimal t2 = BigDecimal.valueOf(Math.sqrt(L)).multiply(BigDecimal.valueOf(Math.sqrt(count_l))).multiply(BigDecimal.valueOf(Math.sqrt(cur_f_count))).multiply(BigDecimal.valueOf(Math.sqrt(F)));
                     System.out.println("t1: " + t1 + " t2: " + t2);
-                    double assoc4 = t1 / t2;
+                    BigDecimal assoc4 = t1.divide(t2,mc);
                     System.out.println("assoc4: " + assoc4);
 
                     Text assocs = new Text(assoc1 + " " + assoc2 + " " + assoc3 + " " + assoc4);
