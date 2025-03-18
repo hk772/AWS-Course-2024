@@ -105,8 +105,8 @@ public class AWSApp {
         //Job flow
         JobFlowInstancesConfig instances = new JobFlowInstancesConfig()
                 .withInstanceCount(numberOfInstances)
-                .withMasterInstanceType("m7i.large")
-                .withSlaveInstanceType("m7i.large")
+                .withMasterInstanceType(InstanceType.M4Large.toString())
+                .withSlaveInstanceType(InstanceType.M4Large.toString())
                 .withHadoopVersion("3.4.0")
 //                .withEc2KeyName("vockey")
                 .withKeepJobFlowAliveWhenNoSteps(false)
