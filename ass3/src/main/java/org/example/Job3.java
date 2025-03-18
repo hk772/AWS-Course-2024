@@ -141,8 +141,8 @@ public class Job3 {
             System.out.println("received in reducer: key: " + key.getW1W2() + " " + key.getFeature() + " val1: " + val1.getW1() + " " + val1.getTag() + " val2: " + val2.getW1() + " " + val2.getTag());
 
             // extract the assoc values for each word
-            assoc1 = Arrays.stream(val1.getW1().toString().split(" ")).map(x -> BigDecimal.valueOf(Double.parseDouble(x))).collect(Collectors.toList()).toArray(assoc1);
-            assoc2 = Arrays.stream(val2.getW1().toString().split(" ")).map(x -> BigDecimal.valueOf(Double.parseDouble(x))).collect(Collectors.toList()).toArray(assoc2);
+            assoc1 = Arrays.stream(val1.getW1().toString().split(" ")).map(BigDecimal::new).collect(Collectors.toList()).toArray(assoc1);
+            assoc2 = Arrays.stream(val2.getW1().toString().split(" ")).map(BigDecimal::new).collect(Collectors.toList()).toArray(assoc2);
 
             System.out.println("assoc1: " + Arrays.toString(assoc1));
             System.out.println("assoc2: " + Arrays.toString(assoc2));
