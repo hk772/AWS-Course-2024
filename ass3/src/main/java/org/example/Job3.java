@@ -141,8 +141,44 @@ public class Job3 {
             System.out.println("received in reducer: key: " + key.getW1W2() + " " + key.getFeature() + " val1: " + val1.getW1() + " " + val1.getTag() + " val2: " + val2.getW1() + " " + val2.getTag());
 
             // extract the assoc values for each word
-            assoc1 = Arrays.stream(val1.getW1().toString().split(" ")).map(BigDecimal::new).collect(Collectors.toList()).toArray(assoc1);
-            assoc2 = Arrays.stream(val2.getW1().toString().split(" ")).map(BigDecimal::new).collect(Collectors.toList()).toArray(assoc2);
+            String[] assoc1Temps = val1.getW1().toString().split(" ");
+            for (int i = 0; i < NUM_ASSOC; i++) {
+                if (i <= 2) {
+                    try {
+                        double assoc = Double.parseDouble(assoc1Temps[i]);
+                        assoc1[i] = BigDecimal.valueOf(assoc);
+                    } catch (Exception e) {
+                        return; // skip this record
+                    }
+                } else { // only parse the last element of the array as BigDecimal
+                    try {
+                        BigDecimal assoc = new BigDecimal(assoc1Temps[i]);
+                        assoc1[i] = assoc;
+                    } catch (Exception e) {
+                        return; // skip this record
+                    }
+                }
+            }
+            String[] assoc2Temps = val1.getW1().toString().split(" ");
+            for (int i = 0; i < NUM_ASSOC; i++) {
+                if (i <= 2) {
+                    try {
+                        double assoc = Double.parseDouble(assoc2Temps[i]);
+                        assoc2[i] = BigDecimal.valueOf(assoc);
+                    } catch (Exception e) {
+                        return; // skip this record
+                    }
+                } else { // only parse the last element of the array as BigDecimal
+                    try {
+                        BigDecimal assoc = new BigDecimal(assoc2Temps[i]);
+                        assoc2[i] = assoc;
+                    } catch (Exception e) {
+                        return; // skip this record
+                    }
+                }
+            }
+//            assoc1 = Arrays.stream(val1.getW1().toString().split(" ")).map(BigDecimal::new).collect(Collectors.toList()).toArray(assoc1);
+//            assoc2 = Arrays.stream(val2.getW1().toString().split(" ")).map(BigDecimal::new).collect(Collectors.toList()).toArray(assoc2);
 
             System.out.println("assoc1: " + Arrays.toString(assoc1));
             System.out.println("assoc2: " + Arrays.toString(assoc2));
